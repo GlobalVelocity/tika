@@ -76,6 +76,8 @@ public class OpenDocumentContentParser extends AbstractParser {
 
     protected static final char[] TAB = new char[] { '\t' };
 
+    protected static final char[] SPACE = new char[] { ' ' };
+
     private static final Attributes EMPTY_ATTRIBUTES = new AttributesImpl();
 
     /**
@@ -305,6 +307,11 @@ public class OpenDocumentContentParser extends AbstractParser {
                             && ("tab-stop".equals(localName)
                                     || "tab".equals(localName))) {
                         this.characters(TAB, 0, TAB.length);
+                    }
+
+                    // special handling of space tags
+                    if (TEXT_NS.equals(namespaceURI) && "s".equals(localName)) {
+                        this.characters(SPACE, 0, SPACE.length);
                     }
                 }
 
