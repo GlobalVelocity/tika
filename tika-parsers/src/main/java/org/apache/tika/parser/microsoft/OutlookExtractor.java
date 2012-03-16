@@ -19,7 +19,9 @@ package org.apache.tika.parser.microsoft;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import org.apache.poi.hmef.attribute.MAPIRtfAttribute;
 import org.apache.poi.hsmf.MAPIMessage;
@@ -44,6 +46,7 @@ import org.apache.tika.parser.txt.CharsetMatch;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.SAXException;
+import org.xml.sax.helpers.AttributesImpl;
 
 /**
  * Outlook Message Parser.
@@ -146,12 +149,13 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
                  // We can't find the date, sorry...
               }
            }
-           
-   
+
+/*
            xhtml.element("h1", subject);
    
            // Output the from and to details in text, as you
            //  often want them in text form for searching
+
            xhtml.startElement("dl");
            if (from!=null) {
                header(xhtml, "From", from);
@@ -163,7 +167,7 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
                header(xhtml, "Recipients", msg.getRecipientEmailAddress());
            } catch(ChunkNotFoundException e) {}
            xhtml.endElement("dl");
-   
+*/
            // Get the message body. Preference order is: html, rtf, text
            Chunk htmlChunk = null;
            Chunk rtfChunk = null;
@@ -215,6 +219,7 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
            }
            
            // Process the attachments
+           List<String> attList = new ArrayList<String>();
            for (AttachmentChunks attachment : msg.getAttachmentFiles()) {
                xhtml.startElement("div", "class", "attachment-entry");
                
@@ -225,7 +230,8 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
                   filename = attachment.attachFileName.getValue();
                }
                if (filename != null && filename.length() > 0) {
-                   xhtml.element("h1", filename);
+                     attList.add(filename);
+//                   xhtml.element("h1", filename);
                }
                
                if(attachment.attachData != null) {
@@ -245,6 +251,17 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
                xhtml.endElement("div");
                
            }
+           if(!attList.isEmpty()){
+               String attMeta = "";
+               for(String att: attList){attMeta += att + ";";}
+               metadata.set("Attachment List", attMeta);
+               AttributesImpl attributes = new AttributesImpl();
+               attributes.addAttribute("", "name", "name", "CDATA", "Attachments");
+               attributes.addAttribute("", "content", "content", "CDATA", attMeta);
+               xhtml.startElement("http://www.w3.org/1999/xhtml", "meta", "meta", attributes);
+               xhtml.endElement("http://www.w3.org/1999/xhtml", "meta", "meta");
+           }
+
         } catch(ChunkNotFoundException e) {
            throw new TikaException("POI MAPIMessage broken - didn't return null on missing chunk", e);
         }
