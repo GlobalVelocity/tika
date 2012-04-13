@@ -40,6 +40,7 @@ import org.apache.tika.sax.EndDocumentShieldingContentHandler;
 import org.apache.xmlbeans.XmlException;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
+import org.xml.sax.helpers.AttributesImpl;
 
 /**
  * Figures out the correct {@link OOXMLExtractor} for the supplied document and
@@ -47,6 +48,13 @@ import org.xml.sax.SAXException;
  */
 public class OOXMLExtractorFactory {
 
+    public static final String XHTML = "http://www.w3.org/1999/xhtml";
+
+    /**
+     * The newline character that gets inserted after block elements.
+     */
+    private static final char[] NL = new char[] { '\n' };
+    
     public static void parse(
             InputStream stream, ContentHandler baseHandler,
             Metadata metadata, ParseContext context)
@@ -56,7 +64,7 @@ public class OOXMLExtractorFactory {
         
         try {
             OOXMLExtractor extractor;
-
+            
             POIXMLTextExtractor poiExtractor;
             TikaInputStream tis = TikaInputStream.cast(stream);
             if (tis != null && tis.getOpenContainer() instanceof OPCPackage) {
@@ -98,6 +106,22 @@ public class OOXMLExtractorFactory {
 
             // Now we can get the metadata
             extractor.getMetadataExtractor().extract(metadata);
+
+            // Now we output the metadata SAX messages
+            for (String name : metadata.names()) {
+                for (String value : metadata.getValues(name)) {
+                    // Putting null values into attributes causes problems, but is
+                    // allowed by Metadata, so guard against that.
+                    if (value != null) {
+                        AttributesImpl attributes = new AttributesImpl();
+                        attributes.addAttribute("", "name", "name", "CDATA", name);
+                        attributes.addAttribute("", "content", "content", "CDATA", value);
+                        handler.startElement(XHTML, "meta", "meta", attributes);
+                        handler.endElement(XHTML, "meta", "meta");
+                        handler.ignorableWhitespace(NL, 0, NL.length);
+                    }
+                }
+            }
             
             // Then finish up
             handler.reallyEndDocument();
