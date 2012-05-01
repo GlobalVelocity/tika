@@ -210,7 +210,10 @@ public class CharsetDetector {
                 }
                 
                 CharsetMatch  m = new CharsetMatch(this, csr, confidence);
-                matches.add(m);
+
+                // Only add match if it's supported in the current JVM.
+                if (Charset.isSupported(m.getName()))
+                    matches.add(m);
             }
         }
         
