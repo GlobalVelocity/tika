@@ -38,15 +38,15 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.tika</groupId>
+    <groupId>com.globalvelocity.tika/groupId>
     <artifactId>tika-parent</artifactId>
-    <version>0.10-SNAPSHOT</version>
+    <version>0.1-SNAPSHOT</version>
     <relativePath>../tika-parent/pom.xml</relativePath>
   </parent>
 
   <artifactId>tika-server</artifactId>
   <packaging>bundle</packaging>
-  <name>Apache Tika server</name>
+  <name>Global Velocity Apache Tika server</name>
 
     <dependencies>
         <dependency>
