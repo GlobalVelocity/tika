@@ -501,7 +501,7 @@ public class Tika {
 
         try {
             InputStream stream = Tika.class.getResourceAsStream(
-                    "/META-INF/maven/org.apache.tika/tika-core/pom.properties");
+                    "/META-INF/maven/com.globalvelocity.tika/tika-core/pom.properties");
             if (stream != null) {
                 try {
                     Properties properties = new Properties();
@@ -515,9 +515,9 @@ public class Tika {
         }
 
         if (version != null) {
-            return "Apache Tika " + version;
+            return "Global Velocity Apache Tika " + version;
         } else {
-            return "Apache Tika";
+            return "Global Velocity Apache Tika";
         }
     }
 

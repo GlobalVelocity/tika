@@ -24,7 +24,7 @@ public class TikaIT extends TestCase {
         String version = new Tika().toString();
         assertNotNull(version);
         assertTrue(version.matches(
-                "Apache Tika \\d+\\.\\d+(\\.\\d+)?(-SNAPSHOT)?"));
+                "Global Velocity Apache Tika \\d+\\.\\d+(\\.\\d+)?(-SNAPSHOT)?"));
     }
 
 }
