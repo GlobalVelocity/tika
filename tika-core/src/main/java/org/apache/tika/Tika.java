@@ -515,9 +515,9 @@ public class Tika {
         }
 
         if (version != null) {
-            return "Global Velocity Apache Tika " + version;
+            return "Global Velocity Tika " + version;
         } else {
-            return "Global Velocity Apache Tika";
+            return "Global Velocity Tika";
         }
     }
 

@@ -38,7 +38,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.globalvelocity.tika/groupId>
+    <groupId>com.globalvelocity.tika</groupId>
     <artifactId>tika-parent</artifactId>
     <version>0.1-SNAPSHOT</version>
     <relativePath>../tika-parent/pom.xml</relativePath>
@@ -46,7 +46,7 @@
 
   <artifactId>tika-server</artifactId>
   <packaging>bundle</packaging>
-  <name>Global Velocity Apache Tika server</name>
+  <name>Global Velocity :: Product :: Source :: Tika-Server</name>
 
     <dependencies>
         <dependency>

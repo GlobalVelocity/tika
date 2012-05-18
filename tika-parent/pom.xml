@@ -34,7 +34,7 @@
   <version>0.1-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>Global Velocity Apache Tika parent</name>
+  <name>Global Velocity :: Product :: Source :: Tika-Parent</name>
   <description>
     Apache Tika is a toolkit for detecting and extracting metadata and
     structured text content from various documents using existing parser

@@ -31,18 +31,8 @@
 
   <artifactId>tika</artifactId>
   <packaging>pom</packaging>
-  <name>Global Velocity Apache Tika Branch</name>
+  <name>Global Velocity :: Product :: Source :: Tika</name>
   <url>http://tika.apache.org</url>
-
-  <scm>
-    <connection>
-      scm:svn:http://svn.apache.org/repos/asf/tika/tags/1.0
-    </connection>
-    <developerConnection>
-      scm:svn:https://svn.apache.org/repos/asf/tika/tags/1.0
-    </developerConnection>
-    <url>http://svn.apache.org/viewvc/tika/tags/1.0</url>
-  </scm>
 
   <modules>
     <module>tika-parent</module>
