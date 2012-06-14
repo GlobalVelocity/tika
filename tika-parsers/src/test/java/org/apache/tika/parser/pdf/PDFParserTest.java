@@ -29,6 +29,7 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.PasswordProvider;
 import org.apache.tika.sax.BodyContentHandler;
 import org.xml.sax.ContentHandler;
 /**
@@ -123,6 +124,35 @@ public class PDFParserTest extends TikaTest {
        assertEquals("Rethinking the Financial Network, Speech by Andrew G Haldane, Executive Director, Financial Stability delivered at the Financial Student Association, Amsterdam on 28 April 2009", metadata.get(Metadata.TITLE));
 
        String content = handler.toString();
+       assertTrue(content.contains("RETHINKING THE FINANCIAL NETWORK"));
+       assertTrue(content.contains("On 16 November 2002"));
+       assertTrue(content.contains("In many important respects"));
+       
+       
+       // Try again with an explicit empty password
+       handler = new BodyContentHandler();
+       metadata = new Metadata();
+       
+       context = new ParseContext();
+       context.set(PasswordProvider.class, new PasswordProvider() {
+           public String getPassword(Metadata metadata) {
+              return "";
+          }
+       });
+       
+       stream = PDFParserTest.class.getResourceAsStream(
+                  "/test-documents/testPDF_protected.pdf");
+       try {
+          parser.parse(stream, handler, metadata, context);
+       } finally {
+          stream.close();
+       }
+
+       assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
+       assertEquals("The Bank of England", metadata.get(Metadata.AUTHOR));
+       assertEquals("Speeches by Andrew G Haldane", metadata.get(Metadata.SUBJECT));
+       assertEquals("Rethinking the Financial Network, Speech by Andrew G Haldane, Executive Director, Financial Stability delivered at the Financial Student Association, Amsterdam on 28 April 2009", metadata.get(Metadata.TITLE));
+
        assertTrue(content.contains("RETHINKING THE FINANCIAL NETWORK"));
        assertTrue(content.contains("On 16 November 2002"));
        assertTrue(content.contains("In many important respects"));
@@ -250,6 +280,26 @@ public class PDFParserTest extends TikaTest {
         content = content.replaceAll("[\\s\u00a0]+"," ");
         assertContains("Here is some text", content);
         assertEquals(-1, content.indexOf("Here is a comment"));
+
+        // TIKA-738: make sure no extra </p> tags
+        String xml = getXML("testAnnotations.pdf").xml;
+        assertEquals(substringCount("<p>", xml),
+                     substringCount("</p>", xml));
+    }
+
+    private static int substringCount(String needle, String haystack) {
+        int upto = -1;
+        int count = 0;
+        while(true) {
+            final int next = haystack.indexOf(needle, upto);
+            if (next == -1) {
+                break;
+            }
+            count++;
+            upto = next+1;
+        }
+
+        return count;
     }
 
     public void testPageNumber() throws Exception {
@@ -291,6 +341,69 @@ public class PDFParserTest extends TikaTest {
 
         // Text has extra spaces when autoSpace is on
         assertEquals(-1, content.indexOf("Here is some formatted text"));
+    }
+
+    public void testDuplicateOverlappingText() throws Exception {
+        PDFParser parser = new PDFParser();
+        ContentHandler handler = new BodyContentHandler();
+        Metadata metadata = new Metadata();
+        ParseContext context = new ParseContext();
+        InputStream stream = getResourceAsStream("/test-documents/testOverlappingText.pdf");
+        // Default is false (keep overlapping text):
+        try {
+            parser.parse(stream, handler, metadata, context);
+        } finally {
+            stream.close();
+        }
+        String content = handler.toString();
+        assertContains("Text the first timeText the second time", content);
+
+        parser.setSuppressDuplicateOverlappingText(true);
+        handler = new BodyContentHandler();
+        metadata = new Metadata();
+        context = new ParseContext();
+        stream = getResourceAsStream("/test-documents/testOverlappingText.pdf");
+        try {
+            parser.parse(stream, handler, metadata, context);
+        } finally {
+            stream.close();
+        }
+        content = handler.toString();
+        // "Text the first" was dedup'd:
+        assertContains("Text the first timesecond time", content);
+    }
+
+    public void testSortByPosition() throws Exception {
+        PDFParser parser = new PDFParser();
+        parser.setEnableAutoSpace(false);
+        ContentHandler handler = new BodyContentHandler();
+        Metadata metadata = new Metadata();
+        ParseContext context = new ParseContext();
+        InputStream stream = getResourceAsStream("/test-documents/testPDFTwoTextBoxes.pdf");
+        // Default is false (do not sort):
+        try {
+            parser.parse(stream, handler, metadata, context);
+        } finally {
+            stream.close();
+        }
+        String content = handler.toString();
+        content = content.replaceAll("\\s+", " ");
+        assertContains("Left column line 1 Left column line 2 Right column line 1 Right column line 2", content);
+
+        parser.setSortByPosition(true);
+        handler = new BodyContentHandler();
+        metadata = new Metadata();
+        context = new ParseContext();
+        stream = getResourceAsStream("/test-documents/testPDFTwoTextBoxes.pdf");
+        try {
+            parser.parse(stream, handler, metadata, context);
+        } finally {
+            stream.close();
+        }
+        content = handler.toString();
+        content = content.replaceAll("\\s+", " ");
+        // Column text is now interleaved:
+        assertContains("Left column line 1 Right column line 1 Left colu mn line 2 Right column line 2", content);
     }
 
     private static class XMLResult {

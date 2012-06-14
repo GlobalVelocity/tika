@@ -65,11 +65,10 @@ public class XSSFExcelExtractorDecorator extends AbstractOOXMLExtractor {
     private final DataFormatter formatter;
     private final List<PackagePart> sheetParts = new ArrayList<PackagePart>();
     private final List<Boolean> sheetProtected = new ArrayList<Boolean>();
-    private static final String TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
+    
     public XSSFExcelExtractorDecorator(
             ParseContext context, XSSFEventBasedExcelExtractor extractor, Locale locale) {
-        super(context, extractor, TYPE);
+        super(context, extractor);
 
         this.extractor = extractor;
         extractor.setFormulasNotResults(false);
@@ -174,7 +173,7 @@ public class XSSFExcelExtractorDecorator extends AbstractOOXMLExtractor {
     /**
      * Turns formatted sheet events into HTML
      */
-    protected class SheetTextAsHTML implements SheetContentsHandler {
+    protected static class SheetTextAsHTML implements SheetContentsHandler {
        private XHTMLContentHandler xhtml;
        private CommentsTable comments;
        private List<String> headers;
@@ -235,7 +234,7 @@ public class XSSFExcelExtractorDecorator extends AbstractOOXMLExtractor {
      * Allows access to headers/footers from raw xml strings
      */
     private static HeaderFooterHelper hfHelper = new HeaderFooterHelper();
-    protected class HeaderFooterFromString implements HeaderFooter {
+    protected static class HeaderFooterFromString implements HeaderFooter {
       private String text;
       protected HeaderFooterFromString(String text) {
          this.text = text;
@@ -260,7 +259,7 @@ public class XSSFExcelExtractorDecorator extends AbstractOOXMLExtractor {
      * Captures information on interesting tags, whilst
      *  delegating the main work to the formatting handler
      */
-    protected class XSSFSheetInterestingPartsCapturer implements ContentHandler {
+    protected static class XSSFSheetInterestingPartsCapturer implements ContentHandler {
       private ContentHandler delegate;
       private boolean hasProtection = false;
       
@@ -348,7 +347,7 @@ public class XSSFExcelExtractorDecorator extends AbstractOOXMLExtractor {
 
     @Override
     public MetadataExtractor getMetadataExtractor() {
-        return new MetadataExtractor(extractor, TYPE) {
+        return new MetadataExtractor(extractor) {
             @Override
             public void extract(Metadata metadata) throws TikaException {
                 super.extract(metadata);

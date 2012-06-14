@@ -116,7 +116,9 @@
               poi,poi-scratchpad,poi-ooxml,poi-ooxml-schemas,
               xmlbeans, dom4j,
               tagsoup,
-              asm,
+              asm, 
+              vorbis-java-core, vorbis-java-tika,
+              isoparser, scannotation, javassist,
               metadata-extractor,
               boilerpipe, rome,
               apache-mime4j-core, apache-mime4j-dom

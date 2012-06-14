@@ -16,10 +16,12 @@
  */
 package org.apache.tika.parser.microsoft.ooxml;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 import org.apache.poi.POIXMLTextExtractor;
 import org.apache.poi.POIXMLProperties.CoreProperties;
+import org.apache.poi.POIXMLProperties.CustomProperties;
 import org.apache.poi.POIXMLProperties.ExtendedProperties;
 import org.apache.poi.openxml4j.opc.internal.PackagePropertiesPart;
 import org.apache.poi.openxml4j.util.Nullable;
@@ -28,6 +30,7 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.PagedText;
 import org.apache.tika.metadata.Property;
+import org.openxmlformats.schemas.officeDocument.x2006.customProperties.CTProperty;
 import org.openxmlformats.schemas.officeDocument.x2006.extendedProperties.CTProperties;
 
 /**
@@ -41,21 +44,17 @@ public class MetadataExtractor {
 
     private final POIXMLTextExtractor extractor;
 
-    private final String type;
-
-    public MetadataExtractor(POIXMLTextExtractor extractor, String type) {
+    public MetadataExtractor(POIXMLTextExtractor extractor) {
         this.extractor = extractor;
-        this.type = type;
     }
 
     public void extract(Metadata metadata) throws TikaException {
-        addProperty(metadata, Metadata.CONTENT_TYPE, type);
-        
         if (extractor.getDocument() != null ||
               (extractor instanceof XSSFEventBasedExcelExtractor && 
                extractor.getPackage() != null)) {
             extractMetadata(extractor.getCoreProperties(), metadata);
             extractMetadata(extractor.getExtendedProperties(), metadata);
+            extractMetadata(extractor.getCustomProperties(), metadata);
         }
     }
 
@@ -127,6 +126,114 @@ public class MetadataExtractor {
         addProperty(metadata, Metadata.WORD_COUNT, propsHolder.getWords());
     }
 
+    private void extractMetadata(CustomProperties properties,
+          Metadata metadata) {
+       org.openxmlformats.schemas.officeDocument.x2006.customProperties.CTProperties
+           props = properties.getUnderlyingProperties();
+
+       for(CTProperty property : props.getPropertyList()) {
+          String val = null;
+          Date date = null;
+
+          if (property.isSetLpwstr()) {
+             val = property.getLpwstr(); 
+          }
+          else if (property.isSetLpstr()) {
+             val = property.getLpstr(); 
+          }
+          else if (property.isSetDate()) {
+             date = property.getDate().getTime(); 
+          }
+          else if (property.isSetFiletime()) {
+             date = property.getFiletime().getTime(); 
+          }
+
+          else if (property.isSetBool()) {
+             val = Boolean.toString( property.getBool() );
+          }
+
+          // Integers
+          else if (property.isSetI1()) {
+             val = Integer.toString(property.getI1()); 
+          }
+          else if (property.isSetI2()) {
+             val = Integer.toString(property.getI2()); 
+          }
+          else if (property.isSetI4()) {
+             val = Integer.toString(property.getI4()); 
+          }
+          else if (property.isSetI8()) {
+             val = Long.toString(property.getI8()); 
+          }
+          else if (property.isSetInt()) {
+             val = Integer.toString( property.getInt() ); 
+          }
+
+          // Unsigned Integers
+          else if (property.isSetUi1()) {
+             val = Integer.toString(property.getUi1()); 
+          }
+          else if (property.isSetUi2()) {
+             val = Integer.toString(property.getUi2()); 
+          }
+          else if (property.isSetUi4()) {
+             val = Long.toString(property.getUi4()); 
+          }
+          else if (property.isSetUi8()) {
+             val = property.getUi8().toString(); 
+          }
+          else if (property.isSetUint()) {
+             val = Long.toString(property.getUint()); 
+          }
+
+          // Reals
+          else if (property.isSetR4()) {
+             val = Float.toString( property.getR4() ); 
+          }
+          else if (property.isSetR8()) {
+             val = Double.toString( property.getR8() ); 
+          }
+          else if (property.isSetDecimal()) {
+             BigDecimal d = property.getDecimal();
+             if (d == null) {
+                val = null;
+             } else {
+                val = d.toPlainString();
+             }
+          }
+
+          else if (property.isSetArray()) {
+             // TODO Fetch the array values and output
+          }
+          else if (property.isSetVector()) {
+             // TODO Fetch the vector values and output
+          }
+
+          else if (property.isSetBlob() || property.isSetOblob()) {
+             // TODO Decode, if possible
+          }
+          else if (property.isSetStream() || property.isSetOstream() ||
+                   property.isSetVstream()) {
+             // TODO Decode, if possible
+          }
+          else if (property.isSetStorage() || property.isSetOstorage()) {
+             // TODO Decode, if possible
+          }
+          
+          else {
+             // This type isn't currently supported yet, skip the property
+          }
+          
+          String propName = "custom:" + property.getName();
+          if (date != null) {
+             Property tikaProp = Property.externalDate(propName);
+             metadata.set(tikaProp, date);
+          } else if (val != null) {
+             metadata.set(propName, val);
+          }
+       }
+    }
+    
     private void addProperty(Metadata metadata, Property property, Nullable<Date> value) {
         if (value.getValue() != null) {
             metadata.set(property, value.getValue());
@@ -145,9 +252,15 @@ public class MetadataExtractor {
         }
     }
 
-    private void addProperty(Metadata metadata, String name, long value) {
+    private void addProperty(Metadata metadata, Property property, int value) {
+       if (value > 0) {
+           metadata.set(property, value);
+       }
+    }
+    
+    private void addProperty(Metadata metadata, String name, int value) {
         if (value > 0) {
-            metadata.set(name, Long.toString(value));
+            metadata.set(name, Integer.toString(value));
         }
     }
 }

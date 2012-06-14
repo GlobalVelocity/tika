@@ -21,6 +21,8 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.Iterator;
 
+import org.apache.tika.parser.mp3.ID3Tags.ID3Comment;
+
 /**
  * A frame of ID3v2 data, which is then passed to a handler to 
  * be turned into useful data.
@@ -175,6 +177,21 @@ public class ID3v2Frame implements MP3Frame {
 
         return b;
     }
+    
+    protected static class TextEncoding {
+       public final boolean doubleByte;
+       public final String encoding;
+       private TextEncoding(String encoding, boolean doubleByte) {
+          this.doubleByte = doubleByte;
+          this.encoding = encoding;
+       }
+    }
+    protected static final TextEncoding[] encodings = new TextEncoding[] {
+          new TextEncoding("ISO-8859-1", false),
+          new TextEncoding("UTF-16", true), // With BOM
+          new TextEncoding("UTF-16BE", true), // Without BOM
+          new TextEncoding("UTF-8", false)
+    };
 
     /**
      * Returns the (possibly null padded) String at the given offset and
@@ -182,38 +199,100 @@ public class ID3v2Frame implements MP3Frame {
      */
     protected static String getTagString(byte[] data, int offset, int length) {
         int actualLength = length;
-        while (actualLength > 0 && data[actualLength-1] == 0) {
-            actualLength--;
-        }
         if (actualLength == 0) {
+            return "";
+        }
+        if (actualLength == 1 && data[offset] == 0) {
             return "";
         }
 
         // Does it have an encoding flag?
         // Detect by the first byte being sub 0x20
-        String encoding = "ISO-8859-1";
+        TextEncoding encoding = encodings[0];
         byte maybeEncodingFlag = data[offset];
-        if (maybeEncodingFlag == 0 || maybeEncodingFlag == 1 ||
-              maybeEncodingFlag == 2 || maybeEncodingFlag == 3) {
+        if (maybeEncodingFlag >= 0 && maybeEncodingFlag < encodings.length) {
             offset++;
             actualLength--;
-            if (maybeEncodingFlag == 1) {
-                // With BOM
-                encoding = "UTF-16";
-            } else if (maybeEncodingFlag == 2) {
-                // Without BOM
-                encoding = "UTF-16BE";
-            } else if (maybeEncodingFlag == 3) {
-                encoding = "UTF8";
-            }
+            encoding = encodings[maybeEncodingFlag];
+        }
+        
+        // Trim off null termination / padding (as present) 
+        while (encoding.doubleByte && actualLength >= 2 && data[offset+actualLength-1] == 0 && data[offset+actualLength-2] == 0) {
+           actualLength -= 2;
+        } 
+        while (!encoding.doubleByte && actualLength >= 1 && data[offset+actualLength-1] == 0) {
+           actualLength--;
+        }
+        if (actualLength == 0) {
+           return "";
         }
 
         try {
-            return new String(data, offset, actualLength, encoding);
+            // Build the base string
+            return new String(data, offset, actualLength, encoding.encoding);
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(
-                    "Core encoding " + encoding + " is not available", e);
+                    "Core encoding " + encoding.encoding + " is not available", e);
         }
+    }
+    /**
+     * Builds up the ID3 comment, by parsing and extracting
+     *  the comment string parts from the given data. 
+     */
+    protected static ID3Comment getComment(byte[] data, int offset, int length) {
+       // Comments must have an encoding
+       int encodingFlag = data[offset];
+       if (encodingFlag >= 0 && encodingFlag < encodings.length) {
+          // Good, valid flag
+       } else {
+          // Invalid string
+          return null;
+       }
+       
+       TextEncoding encoding = encodings[encodingFlag];
+       
+       // First is a 3 byte language
+       String lang = getString(data, offset+1, 3);
+       
+       // After that we have [Desc]\0(\0)[Text]
+       int descStart = offset+4;
+       int textStart = -1;
+       String description = null;
+       String text = null;
+       
+       // Find where the description ends
+       try {
+          for (int i=descStart; i<offset+length; i++) {
+             if (encoding.doubleByte && data[i]==0 && data[i+1] == 0) {
+                // Handle LE vs BE on low byte text
+                if (i+2 < offset+length && data[i+1] == 0 && data[i+2] == 0) {
+                   i++;
+                }
+                textStart = i+2;
+                description = new String(data, descStart, i-descStart, encoding.encoding);
+                break;
+             }
+             if (!encoding.doubleByte && data[i]==0) {
+                textStart = i+1;
+                description = new String(data, descStart, i-descStart, encoding.encoding);
+                break;
+             }
+          }
+          
+          // Did we find the end?
+          if (textStart > -1) {
+             text = new String(data, textStart, offset+length-textStart, encoding.encoding);
+          } else {
+             // Assume everything is the text
+             text = new String(data, descStart, offset+length-descStart, encoding.encoding);
+          }
+          
+          // Return
+          return new ID3Comment(lang, description, text);
+       } catch (UnsupportedEncodingException e) {
+          throw new RuntimeException(
+                  "Core encoding " + encoding.encoding + " is not available", e);
+       }
     }
 
     /**

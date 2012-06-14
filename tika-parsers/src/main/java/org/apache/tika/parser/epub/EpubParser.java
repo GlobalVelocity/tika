@@ -18,7 +18,9 @@ package org.apache.tika.parser.epub;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -31,6 +33,9 @@ import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.xml.DcXMLParser;
+import org.apache.tika.sax.BodyContentHandler;
+import org.apache.tika.sax.EmbeddedContentHandler;
+import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -44,7 +49,10 @@ public class EpubParser extends AbstractParser {
     private static final long serialVersionUID = 215176772484050550L;
 
     private static final Set<MediaType> SUPPORTED_TYPES =
-        Collections.singleton(MediaType.application("epub+zip"));
+            Collections.unmodifiableSet(new HashSet<MediaType>(Arrays.asList(
+            		MediaType.application("epub+zip"),
+                  MediaType.application("x-ibooks+zip")
+            )));
 
     private Parser meta = new DcXMLParser();
 
@@ -74,6 +82,13 @@ public class EpubParser extends AbstractParser {
             InputStream stream, ContentHandler handler,
             Metadata metadata, ParseContext context)
             throws IOException, SAXException, TikaException {
+        // Because an EPub file is often made up of multiple XHTML files,
+        //  we need explicit control over the start and end of the document
+        XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
+        xhtml.startDocument();
+        ContentHandler childHandler = new EmbeddedContentHandler(
+              new BodyContentHandler(xhtml));
+       
         ZipInputStream zip = new ZipInputStream(stream);
         ZipEntry entry = zip.getNextEntry();
         while (entry != null) {
@@ -84,11 +99,15 @@ public class EpubParser extends AbstractParser {
                 meta.parse(zip, new DefaultHandler(), metadata, context);
             } else if (entry.getName().endsWith(".opf")) {
                 meta.parse(zip, new DefaultHandler(), metadata, context);
-            } else if (entry.getName().endsWith(".html")) {
-                content.parse(zip, handler, metadata, context);
+            } else if (entry.getName().endsWith(".html") || 
+            		   entry.getName().endsWith(".xhtml")) {
+                content.parse(zip, childHandler, metadata, context);
             }
             entry = zip.getNextEntry();
         }
+        
+        // Finish everything
+        xhtml.endDocument();
     }
 
 }

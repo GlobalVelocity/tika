@@ -52,7 +52,14 @@ public class ForkParser extends AbstractParser {
     private final Queue<ForkClient> pool =
         new LinkedList<ForkClient>();
 
+    /**
+     * @param loader The ClassLoader to use 
+     * @param parser the parser to delegate to. This one cannot be another ForkParser
+     */
     public ForkParser(ClassLoader loader, Parser parser) {
+        if (parser instanceof ForkParser) {
+            throw new IllegalArgumentException("The underlying parser of a ForkParser should not be a ForkParser, but a specific implementation.");
+        }
         this.loader = loader;
         this.parser = parser;
     }
@@ -112,6 +119,10 @@ public class ForkParser extends AbstractParser {
             InputStream stream, ContentHandler handler,
             Metadata metadata, ParseContext context)
             throws IOException, SAXException, TikaException {
+        if (stream == null) {
+            throw new NullPointerException("null stream");
+        }
+
         Throwable t;
 
         boolean alive = false;
@@ -119,7 +130,12 @@ public class ForkParser extends AbstractParser {
         try {
             t = client.call("parse", stream, handler, metadata, context);
             alive = true;
+        } catch (TikaException te) {
+            // Problem occurred on our side
+            alive = true;
+            throw te;
         } catch (IOException e) {
+            // Problem occurred on the other side
             throw new TikaException(
                     "Failed to communicate with a forked parser process."
                     + " The process has most likely crashed due to some error"

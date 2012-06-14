@@ -28,9 +28,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import org.apache.poi.ddf.EscherBSERecord;
-import org.apache.poi.ddf.EscherBitmapBlip;
 import org.apache.poi.ddf.EscherBlipRecord;
-import org.apache.poi.ddf.EscherMetafileBlip;
 import org.apache.poi.ddf.EscherRecord;
 import org.apache.poi.hssf.eventusermodel.FormatTrackingHSSFListener;
 import org.apache.poi.hssf.eventusermodel.HSSFEventFactory;
@@ -53,9 +51,11 @@ import org.apache.poi.hssf.record.NumberRecord;
 import org.apache.poi.hssf.record.RKRecord;
 import org.apache.poi.hssf.record.Record;
 import org.apache.poi.hssf.record.SSTRecord;
+import org.apache.poi.hssf.record.StringRecord;
 import org.apache.poi.hssf.record.TextObjectRecord;
 import org.apache.poi.hssf.record.chart.SeriesTextRecord;
 import org.apache.poi.hssf.record.common.UnicodeString;
+import org.apache.poi.hssf.usermodel.HSSFPictureData;
 import org.apache.poi.poifs.filesystem.DirectoryEntry;
 import org.apache.poi.poifs.filesystem.DirectoryNode;
 import org.apache.poi.poifs.filesystem.DocumentInputStream;
@@ -182,6 +182,7 @@ public class ExcelExtractor extends AbstractPOIFSExtractor {
         private Exception exception = null;
 
         private SSTRecord sstRecord;
+        private FormulaRecord stringFormulaRecord;
         
         private short previousSid;
 
@@ -275,6 +276,7 @@ public class ExcelExtractor extends AbstractPOIFSExtractor {
                 hssfRequest.addListener(formatListener, LabelSSTRecord.sid);
                 hssfRequest.addListener(formatListener, NumberRecord.sid);
                 hssfRequest.addListener(formatListener, RKRecord.sid);
+                hssfRequest.addListener(formatListener, StringRecord.sid);
                 hssfRequest.addListener(formatListener, HyperlinkRecord.sid);
                 hssfRequest.addListener(formatListener, TextObjectRecord.sid);
                 hssfRequest.addListener(formatListener, SeriesTextRecord.sid);
@@ -376,7 +378,22 @@ public class ExcelExtractor extends AbstractPOIFSExtractor {
 
             case FormulaRecord.sid: // Cell value from a formula
                 FormulaRecord formula = (FormulaRecord) record;
-                addCell(record, new NumberCell(formula.getValue(), format));
+                if (formula.hasCachedResultString()) {
+                   // The String itself should be the next record
+                   stringFormulaRecord = formula;
+                } else {
+                   addTextCell(record, formatListener.formatNumberDateCell(formula));
+                }
+                break;
+                
+            case StringRecord.sid:
+                if (previousSid == FormulaRecord.sid) {
+                   // Cached string value of a string formula
+                   StringRecord sr = (StringRecord) record;
+                   addTextCell(stringFormulaRecord, sr.getString());
+                } else {
+                   // Some other string not associated with a cell, skip
+                }
                 break;
 
             case LabelRecord.sid: // strings stored directly in the cell
@@ -436,6 +453,10 @@ public class ExcelExtractor extends AbstractPOIFSExtractor {
             }
 
             previousSid = record.getSid();
+            
+            if (stringFormulaRecord != record) {
+               stringFormulaRecord = null;
+            }
         }
 
         private void processExtraText() throws SAXException {
@@ -550,37 +571,9 @@ public class ExcelExtractor extends AbstractPOIFSExtractor {
               if (escherRecord instanceof EscherBSERecord) {
                  EscherBlipRecord blip = ((EscherBSERecord) escherRecord).getBlipRecord();
                  if (blip != null) {
-                    // TODO When we have upgraded POI, we can use this code instead
-                    //HSSFPictureData picture = new HSSFPictureData(blip);
-                    //String mimeType = picture.getMimeType();
-                    //TikaInputStream stream = TikaInputStream.get(picture.getData());
-                    
-                    // This code is cut'n'paste from a newer version of POI
-                    String mimeType = "";
-                    switch (blip.getRecordId()) {
-                    case EscherMetafileBlip.RECORD_ID_WMF:
-                       mimeType =  "image/x-wmf";
-                       break;
-                    case EscherMetafileBlip.RECORD_ID_EMF:
-                       mimeType =  "image/x-emf";
-                       break;
-                    case EscherMetafileBlip.RECORD_ID_PICT:
-                       mimeType =  "image/x-pict";
-                       break;
-                    case EscherBitmapBlip.RECORD_ID_PNG:
-                       mimeType =  "image/png";
-                       break;
-                    case EscherBitmapBlip.RECORD_ID_JPEG:
-                       mimeType =  "image/jpeg";
-                       break;
-                    case EscherBitmapBlip.RECORD_ID_DIB:
-                       mimeType =  "image/bmp";
-                       break;
-                    default:
-                       mimeType =  "image/unknown";
-                       break;
-                    }
-                    TikaInputStream stream = TikaInputStream.get(blip.getPicturedata());
+                    HSSFPictureData picture = new HSSFPictureData(blip);
+                    String mimeType = picture.getMimeType();
+                    TikaInputStream stream = TikaInputStream.get(picture.getData());
                     
                     // Handle the embeded resource
                     extractor.handleEmbeddedResource(

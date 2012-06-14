@@ -91,12 +91,17 @@
               <goal>check</goal>
             </goals>
             <configuration>
-              <skip>true</skip>
+              <excludes>
+                <exlude>org/apache/tika/metadata/Property$PropertyType</exlude>
+                <exlude>org/apache/tika/metadata/Property$ValueType</exlude>
+                <exlude>org/apache/tika/metadata/MSOffice</exlude>
+                <exlude>org/apache/tika/parser/EmptyParser</exlude>
+              </excludes>
               <comparisonArtifacts>
                 <comparisonArtifact>
                   <groupId>org.apache.tika</groupId>
                   <artifactId>tika-core</artifactId>
-                  <version>0.10</version>
+                  <version>1.0</version>
                   <type>jar</type>
                 </comparisonArtifact>
               </comparisonArtifacts>

@@ -24,12 +24,12 @@ import java.io.InputStream;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.SortedSet;
-import java.util.TreeSet;
 
 import javax.xml.namespace.QName;
 
@@ -102,11 +102,11 @@ public final class MimeTypes implements Detector, Serializable {
     /** The patterns matcher */
     private Patterns patterns = new Patterns(registry);
 
-    /** List of all registered magics */
-    private SortedSet<Magic> magics = new TreeSet<Magic>();
+    /** Sorted list of all registered magics */
+    private final List<Magic> magics = new ArrayList<Magic>();
 
-    /** List of all registered rootXML */
-    private SortedSet<MimeType> xmls = new TreeSet<MimeType>();
+    /** Sorted list of all registered rootXML */
+    private final List<MimeType> xmls = new ArrayList<MimeType>();
 
     public MimeTypes() {
         rootMimeType = new MimeType(MediaType.OCTET_STREAM);
@@ -210,7 +210,7 @@ public final class MimeTypes implements Detector, Serializable {
 
         // Finally, assume plain text if no control bytes are found
         try {
-            TextDetector detector = new TextDetector();
+            TextDetector detector = new TextDetector(getMinLength());
             ByteArrayInputStream stream = new ByteArrayInputStream(data);
             return forName(detector.detect(stream, new Metadata()).toString());
         } catch (Exception e) {
@@ -262,15 +262,23 @@ public final class MimeTypes implements Detector, Serializable {
      * @return the registered media type with the given name or alias
      * @throws MimeTypeException if the given media type name is invalid
      */
-    public synchronized MimeType forName(String name)
-            throws MimeTypeException {
+    public MimeType forName(String name) throws MimeTypeException {
         MediaType type = MediaType.parse(name);
         if (type != null) {
-            MimeType mime = types.get(registry.normalize(type));
+            MediaType normalisedType = registry.normalize(type);
+            MimeType mime = types.get(normalisedType);
+            
             if (mime == null) {
-                mime = new MimeType(type);
-                add(mime);
-                types.put(type, mime);
+                synchronized (this) {
+                   // Double check it didn't already get added while 
+                   //  we were waiting for the lock
+                   mime = types.get(normalisedType);
+                   if (mime == null) {
+                      mime = new MimeType(type);
+                      add(mime);
+                      types.put(type, mime);
+                   }
+                }
             }
             return mime;
         } else {
@@ -362,13 +370,28 @@ public final class MimeTypes implements Detector, Serializable {
 
         // Update the magics index...
         if (type.hasMagic()) {
-            magics.addAll(Arrays.asList(type.getMagics()));
+            magics.addAll(type.getMagics());
         }
 
         // Update the xml (xmlRoot) index...
         if (type.hasRootXML()) {
             xmls.add(type);
         }
+    }
+
+    /**
+     * Called after all configured types have been loaded.
+     * Initializes the magics and xmls sets.
+     */
+    void init() {
+        for (MimeType type : types.values()) {
+            magics.addAll(type.getMagics());
+            if (type.hasRootXML()) {
+                xmls.add(type);
+            }
+        }
+        Collections.sort(magics);
+        Collections.sort(xmls);
     }
 
     /**
@@ -441,23 +464,29 @@ public final class MimeTypes implements Detector, Serializable {
 
         return type;
     }
-    
+
+    private static MimeTypes DEFAULT_TYPES = null;
+
     /**
      * Get the default MimeTypes. This includes all the build in
-     *  mimetypes, and any custom override ones present. 
+     * media types, and any custom override ones present.
      * 
-     * @return MimeTypes
-     * @throws MimeTypeException
-     * @throws IOException
+     * @return MimeTypes default type registry
      */
-    public static MimeTypes getDefaultMimeTypes() {
-        try {
-            return MimeTypesFactory.create("tika-mimetypes.xml", "custom-mimetypes.xml");
-        } catch (MimeTypeException e) {
-            throw new RuntimeException("Unable to read default mimetypes", e);
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to read default mimetypes", e);
+    public static synchronized MimeTypes getDefaultMimeTypes() {
+        if (DEFAULT_TYPES == null) {
+            try {
+                DEFAULT_TYPES = MimeTypesFactory.create(
+                        "tika-mimetypes.xml", "custom-mimetypes.xml");
+            } catch (MimeTypeException e) {
+                throw new RuntimeException(
+                        "Unable to parse the default media type registry", e);
+            } catch (IOException e) {
+                throw new RuntimeException(
+                        "Unable to read the default media type registry", e);
+            }
         }
+        return DEFAULT_TYPES;
     }
 
 }

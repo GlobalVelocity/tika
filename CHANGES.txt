@@ -1,7 +1,69 @@
 Apache Tika Change Log
 ======================
 
-Release 1.0 - Current Development
+Release 1.1 - 3/7/2012
+---------------------------------
+
+ * Link Extraction: The rel attribute is now extracted from 
+   links per the LinkConteHandler. (TIKA-824)
+
+ * MP3: Fixed handling of UTF-16 (two byte) ID3v2 tags (previously
+   the last character in a UTF-16 tag could be corrupted) (TIKA-793)
+
+ * Performance: Loading of the default media type registry is now
+   significantly faster. (TIKA-780)
+
+ * PDF: Allow controlling whether overlapping duplicated text should
+   be removed.  Disabling this (the default) can give big
+   speedups to text extraction and may workaround cases where
+   non-duplicated characters were incorrectly removed (TIKA-767).
+   Allow controlling whether text tokens should be sorted by their x/y
+   position before extracting text (TIKA-612); this is necessary for
+   certain PDFs.  Fixed cases where too many </p> tags appear in the
+   XHTML output, causing NPE when opening some PDFs with the GUI
+   (TIKA-778).
+
+ * RTF: Fixed case where a font change would result in processing
+   bytes in the wrong font's charset, producing bogus text output
+   (TIKA-777).  Don't output whitespace in ignored group states,
+   avoiding excessive whitespace output (TIKA-781).  Binary embedded
+   content (using \bin control word) is now skipped correctly;
+   previously it could cause the parser to incorrectly extract binary
+   content as text (TIKA-782).
+
+ * CLI: New TikaCLI option "--list-detectors", which displays the
+   mimetype detectors that are available, similar to the existing
+   "--list-parsers" option for parsers. (TIKA-785).
+
+ * Detectors: The order of detectors, as supplied via the service
+   registry loader, is now controlled. User supplied detectors are
+   prefered, then Tika detectors (such as the container aware ones),
+   and finally the core Tika MimeTypes is used as a backup. This
+   allows for specific, detailed detectors to take preference over
+   the default mime magic + filename detector. (TIKA-786)
+
+ * Microsoft Project (MPP): Filetype detection has been fixed,
+   and basic metadata (but no text) is now extracted. (TIKA-789)
+
+ * Outlook: fixed NullPointerException in TikaGUI when messages with
+   embedded RTF or HTML content were filtered (TIKA-801).
+
+ * Ogg Vorbis and FLAC: Parser added for Ogg Vorbis and FLAC audio
+   files, which extract audio metadata and tags (TIKA-747)
+
+ * MP4: Improved mime magic detection for MP4 based formats (including
+   QuickTime, MP4 Video and Audio, and 3GPP) (TIKA-851)
+
+ * MP4: Basic metadata extracting parser for MP4 files added, which includes
+   limited audio and video metadata, along with the iTunes media metadata
+   (such as Artist and Title) (TIKA-852)
+
+ * Document Passwords: A new ParseContext object, PasswordProvider,
+   has been added. This provides a way to supply the password for 
+   a document during processing. Currently, only password protected
+   PDFs and Microsoft OOXML Files are supported. (TIKA-850)
+
+Release 1.0 - 11/4/2011
 ---------------------------------
 
 The most notable changes in Tika 1.0 over previous releases are:

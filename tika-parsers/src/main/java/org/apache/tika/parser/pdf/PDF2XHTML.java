@@ -53,12 +53,16 @@ class PDF2XHTML extends PDFTextStripper {
      * @throws TikaException if the PDF document can not be processed
      */
     public static void process(
-            PDDocument document, ContentHandler handler, Metadata metadata, boolean extractAnnotationText, boolean enableAutoSpace)
+            PDDocument document, ContentHandler handler, Metadata metadata,
+            boolean extractAnnotationText, boolean enableAutoSpace,
+            boolean suppressDuplicateOverlappingText, boolean sortByPosition)
             throws SAXException, TikaException {
         try {
             // Extract text using a dummy Writer as we override the
             // key methods to output to the given content handler.
-            new PDF2XHTML(handler, metadata, extractAnnotationText, enableAutoSpace).writeText(document, new Writer() {
+            new PDF2XHTML(handler, metadata,
+                          extractAnnotationText, enableAutoSpace,
+                          suppressDuplicateOverlappingText, sortByPosition).writeText(document, new Writer() {
                 @Override
                 public void write(char[] cbuf, int off, int len) {
                 }
@@ -81,12 +85,14 @@ class PDF2XHTML extends PDFTextStripper {
     private final XHTMLContentHandler handler;
     private final boolean extractAnnotationText;
 
-    private PDF2XHTML(ContentHandler handler, Metadata metadata, boolean extractAnnotationText, boolean enableAutoSpace)
+    private PDF2XHTML(ContentHandler handler, Metadata metadata,
+                      boolean extractAnnotationText, boolean enableAutoSpace,
+                      boolean suppressDuplicateOverlappingText, boolean sortByPosition)
             throws IOException {
         this.handler = new XHTMLContentHandler(handler, metadata);
         this.extractAnnotationText = extractAnnotationText;
         setForceParsing(true);
-        setSortByPosition(false);
+        setSortByPosition(sortByPosition);
         if (enableAutoSpace) {
             setWordSeparator(" ");
         } else {
@@ -95,6 +101,7 @@ class PDF2XHTML extends PDFTextStripper {
         // TODO: maybe expose setting these too:
         //setAverageCharTolerance(1.0f);
         //setSpacingTolerance(1.0f);
+        setSuppressDuplicateOverlappingText(suppressDuplicateOverlappingText);
     }
 
     @Override
@@ -119,20 +126,19 @@ class PDF2XHTML extends PDFTextStripper {
     protected void startPage(PDPage page) throws IOException {
         try {
             handler.startElement("div", "class", "page");
-            handler.startElement("p");
         } catch (SAXException e) {
             throw new IOExceptionWithCause("Unable to start a page", e);
         }
+        writeParagraphStart();
     }
 
     @Override
     protected void endPage(PDPage page) throws IOException {
 
         try {
+            writeParagraphEnd();
             // TODO: remove once PDFBOX-1143 is fixed:
-            handler.endElement("p");
             if (extractAnnotationText) {
-                boolean foundTextAnnots = false;
                 for(Object o : page.getAnnotations()) {
                     if ((o instanceof PDAnnotation) && PDAnnotationMarkup.SUB_TYPE_FREETEXT.equals(((PDAnnotation) o).getSubtype())) {
                         // It's a text annotation:
@@ -142,11 +148,6 @@ class PDF2XHTML extends PDFTextStripper {
                         String contents = annot.getContents();
                         // TODO: maybe also annot.getRichContents()?
                         if (title != null || subject != null || contents != null) {
-                            if (!foundTextAnnots) {
-                                handler.endElement("p");
-                                foundTextAnnots = true;
-                            }
-
                             handler.startElement("div", "class", "annotation");
 
                             if (title != null) {

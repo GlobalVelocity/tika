@@ -268,10 +268,21 @@ public class RTFParserTest extends TikaTest {
     public void testHyperlink() throws Exception {
         String content = getXML("testRTFHyperlink.rtf").xml;
         assertContains("our most <a href=\"http://r.office.microsoft.com/r/rlidwelcomeFAQ?clid=1033\">frequently asked questions</a>", content);
+        assertEquals(-1, content.indexOf("<p>\t\t</p>"));
     }
 
     public void testIgnoredControlWord() throws Exception {
         assertContains("<p>The quick brown fox jumps over the lazy dog</p>", getXML("testRTFIgnoredControlWord.rtf").xml);
+    }
+
+    public void testFontAfterBufferedText() throws Exception {
+        assertContains("\u0423\u0432\u0430\u0436\u0430\u0435\u043c\u044b\u0439 \u043a\u043b\u0438\u0435\u043d\u0442!",
+                       getXML("testFontAfterBufferedText.rtf").xml);
+    }
+
+    // TIKA-782
+    public void testBinControlWord() throws Exception {
+        assertTrue(getXML("testBinControlWord.rtf").xml.indexOf("\u00ff\u00ff\u00ff\u00ff") == -1);
     }
 
     private Result getResult(String filename) throws Exception {

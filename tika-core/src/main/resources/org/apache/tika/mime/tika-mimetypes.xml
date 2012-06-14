@@ -69,6 +69,47 @@
   <mime-type type="application/dec-dx"/>
   <mime-type type="application/dialog-info+xml"/>
   <mime-type type="application/dicom"/>
+
+  <mime-type type="application/dita+xml">
+    <sub-class-of type="application/xml"/>
+    <_comment>Darwin Information Typing Architecture</_comment>
+  </mime-type>
+
+  <mime-type type="application/dita+xml;format=map">
+    <sub-class-of type="application/dita+xml"/>
+    <_comment>DITA Map</_comment>
+    <root-XML localName="map"/>
+    <root-XML localName="map" namespaceURI="http://docs.oasis-open.org/namespace"/>
+    <glob pattern="*.ditamap"/>
+  </mime-type>
+  <mime-type type="application/dita+xml;format=topic">
+    <sub-class-of type="application/dita+xml"/>
+    <_comment>DITA Topic</_comment>
+    <root-XML localName="topic"/>
+    <root-XML localName="topic" namespaceURI="http://docs.oasis-open.org/namespace"/>
+    <!-- Topic is the default, Task and Concept are specialisations -->
+    <glob pattern="*.dita"/>
+  </mime-type>
+  <mime-type type="application/dita+xml;format=task">
+    <sub-class-of type="application/dita+xml;format=task"/>
+    <_comment>DITA Task Topic</_comment>
+    <root-XML localName="task"/>
+    <root-XML localName="task" namespaceURI="http://docs.oasis-open.org/namespace"/>
+  </mime-type>
+  <mime-type type="application/dita+xml;format=concept">
+    <sub-class-of type="application/dita+xml;format=topic"/>
+    <_comment>DITA Concept Topic</_comment>
+    <root-XML localName="concept"/>
+    <root-XML localName="concept" namespaceURI="http://docs.oasis-open.org/namespace"/>
+  </mime-type>
+  <mime-type type="application/dita+xml;format=val">
+    <sub-class-of type="application/dita+xml"/>
+    <_comment>DITA Conditional Processing Profile</_comment>
+    <root-XML localName="val"/>
+    <root-XML localName="val" namespaceURI="http://docs.oasis-open.org/namespace"/>
+    <glob pattern="*.ditaval"/>
+  </mime-type>
+
   <mime-type type="application/dns"/>
   <mime-type type="application/dvcs"/>
   <mime-type type="application/ecmascript">
@@ -130,6 +171,8 @@
   </mime-type>
 
   <mime-type type="application/javascript">
+    <alias type="application/x-javascript"/>
+    <alias type="text/javascript"/>
     <sub-class-of type="text/plain"/>
     <glob pattern="*.js"/>
   </mime-type>
@@ -209,7 +252,7 @@
 
   <!-- http://www.iana.org/assignments/media-types/application/msword -->
   <mime-type type="application/msword">
-    <!-- Use org.apache.tika.detect.ContainerAwareDetector for more reliable detection of OLE2 documents -->
+    <!-- Use DefaultDetector / org.apache.tika.parser.microsoft.POIFSContainerDetector for more reliable detection of OLE2 documents -->
     <alias type="application/vnd.ms-word"/>
     <_comment>Microsoft Word Document</_comment>
     <magic priority="50">
@@ -1163,7 +1206,7 @@
 
   <!-- http://www.iana.org/assignments/media-types/application/vnd.ms-excel -->
   <mime-type type="application/vnd.ms-excel">
-    <!-- Use org.apache.tika.detect.ContainerAwareDetector for more reliable detection of OLE2 documents -->
+    <!-- Use DefaultDetector / org.apache.tika.parser.microsoft.POIFSContainerDetector for more reliable detection of OLE2 documents -->
     <alias type="application/msexcel" />
     <_comment>Microsoft Excel Spreadsheet</_comment>
     <magic priority="50">
@@ -1239,7 +1282,7 @@
 
   <!-- http://www.iana.org/assignments/media-types/application/vnd.ms-powerpoint -->
   <mime-type type="application/vnd.ms-powerpoint">
-    <!-- Use org.apache.tika.detect.ContainerAwareDetector for more reliable detection of OLE2 documents -->
+    <!-- Use DefaultDetector / org.apache.tika.parser.microsoft.POIFSContainerDetector for more reliable detection of OLE2 documents -->
     <alias type="application/mspowerpoint"/>
     <_comment>Microsoft Powerpoint Presentation</_comment>
     <magic priority="50">
@@ -1247,8 +1290,8 @@
          <match value="P\x00o\x00w\x00e\x00r\x00P\x00o\x00i\x00n\x00t\x00 D\x00o\x00c\x00u\x00m\x00e\x00n\x00t" type="string" offset="1152:4096" />
       </match>
     </magic>
-    <glob pattern="*.ppz"/>
     <glob pattern="*.ppt"/>
+    <glob pattern="*.ppz"/>
     <glob pattern="*.pps"/>
     <glob pattern="*.pot"/>
     <glob pattern="*.ppa"/>
@@ -1286,6 +1329,7 @@
   <mime-type type="application/vnd.ms-project">
     <glob pattern="*.mpp"/>
     <glob pattern="*.mpt"/>
+    <sub-class-of type="application/x-tika-msoffice"/>
   </mime-type>
 
   <mime-type type="application/vnd.ms-tnef">
@@ -1313,6 +1357,11 @@
   </mime-type>
 
   <mime-type type="application/vnd.ms-works">
+    <magic priority="50">
+      <match value="0xd0cf11e0a1b11ae1" type="string" offset="0:8">
+         <match value="M\x00a\x00t\x00O\x00S\x00T" type="string" offset="1152:4096" />
+      </match>
+    </magic>
     <glob pattern="*.wps"/>
     <glob pattern="*.wks"/>
     <glob pattern="*.wcm"/>
@@ -1325,6 +1374,7 @@
   </mime-type>
   <mime-type type="application/vnd.ms-xpsdocument">
     <glob pattern="*.xps"/>
+    <sub-class-of type="application/x-tika-ooxml"/>
   </mime-type>
   <mime-type type="application/vnd.mseq">
     <glob pattern="*.mseq"/>
@@ -1838,18 +1888,42 @@
   <mime-type type="application/vnd.sss-dtf"/>
   <mime-type type="application/vnd.sss-ntf"/>
   <mime-type type="application/vnd.stardivision.calc">
+    <sub-class-of type="application/x-tika-msoffice"/>
+    <magic priority="50">
+      <match value="0xd0cf11e0a1b11ae1" type="string" offset="0:8">
+         <match value="StarCalc" type="string" offset="2048:2207" />
+      </match>
+    </magic>
     <glob pattern="*.sdc"/>
   </mime-type>
   <mime-type type="application/vnd.stardivision.draw">
+    <sub-class-of type="application/x-tika-msoffice"/>
+    <magic priority="50">
+      <match value="0xd0cf11e0a1b11ae1" type="string" offset="0:8">
+         <match value="StarDraw" type="string" offset="2048:2207" />
+      </match>
+    </magic>
     <glob pattern="*.sda"/>
   </mime-type>
   <mime-type type="application/vnd.stardivision.impress">
+    <sub-class-of type="application/x-tika-msoffice"/>
+    <magic priority="50">
+      <match value="0xd0cf11e0a1b11ae1" type="string" offset="0:8">
+         <match value="StarImpress" type="string" offset="2048:2207" />
+      </match>
+    </magic>
     <glob pattern="*.sdd"/>
   </mime-type>
   <mime-type type="application/vnd.stardivision.math">
     <glob pattern="*.smf"/>
   </mime-type>
   <mime-type type="application/vnd.stardivision.writer">
+    <sub-class-of type="application/x-tika-msoffice"/>
+    <magic priority="50">
+      <match value="0xd0cf11e0a1b11ae1" type="string" offset="0:8">
+         <match value="StarWriter" type="string" offset="2048:2207" />
+      </match>
+    </magic>
     <glob pattern="*.sdw"/>
   </mime-type>
   <mime-type type="application/x-staroffice-template">
@@ -2140,11 +2214,13 @@
   </mime-type>
 
   <mime-type type="application/x-archive">
+    <alias type="application/x-unix-archive"/>
     <magic priority="50">
       <match value="=&lt;ar&gt;" type="string" offset="0"/>
-      <match value="=!&lt;arch&gt;" type="string" offset="0"/>
+      <match value="!&lt;arch&gt;\n" type="string" offset="0"/>
     </magic>
-    <glob patter="*.ar"/>
+    <glob pattern="*.ar"/>
+    <glob pattern="*.a"/>
   </mime-type>
 
   <mime-type type="application/x-authorware-bin">
@@ -2212,6 +2288,17 @@
     </magic>
     <glob pattern="*.torrent"/>
   </mime-type>
+  
+  <mime-type type="application/x-bplist">
+    <!-- The priority is 60, as .webarchive files often contain 
+         (X)HTML content. The bplist magic must trump the XHTML 
+         magics further within the file. This must also be 
+         independent of the internal ordering of patterns within 
+         MimeTypes -->
+    <magic priority="60">
+      <match value="bplist" type="string" offset="0"/>
+    </magic>
+  </mime-type>
 
   <mime-type type="application/x-bzip">
     <magic priority="40">
@@ -2268,6 +2355,10 @@
   </mime-type>
 
   <mime-type type="application/x-debian-package">
+    <sub-class-of type="application/x-archive"/>
+    <magic priority="60">
+      <match value="!&lt;arch&gt;\ndebian-binary" type="string" offset="0"/>
+    </magic>
     <glob pattern="*.deb"/>
     <glob pattern="*.udeb"/>
   </mime-type>
@@ -2315,6 +2406,15 @@
       <match value=";ELC\023\000\000\000" type="string" offset="0" />
     </magic>
     <glob pattern="*.elc"/>
+  </mime-type>
+
+  <mime-type type="application/x-emf">
+    <acronym>EMF</acronym>
+    <_comment>Extended Metafile</_comment>
+    <glob pattern="*.emf"/>
+    <magic priority="50">
+      <match value="0x01000000" type="string" offset="0"/>
+    </magic>
   </mime-type>
 
   <mime-type type="application/x-font-bdf">
@@ -2451,6 +2551,18 @@
     </magic>
   </mime-type>
 
+  <mime-type type="application/x-ibooks+zip">
+    <sub-class-of type="application/epub+zip" />
+    <acronym>iBooks</acronym>
+    <_comment>Apple iBooks Author publication format</_comment>
+    <magic priority="50">
+      <match value="PK\003\004" type="string" offset="0">
+        <match value="mimetypeapplication/x-ibooks+zip" type="string" offset="30"/>
+      </match>
+    </magic>
+    <glob pattern="*.ibooks"/>
+  </mime-type>
+
   <mime-type type="application/x-iso9660-image">
     <magic priority="50">
       <match value="CD001" type="string" offset="37633"/>
@@ -2545,12 +2657,14 @@
     <glob pattern="*.m14"/>
   </mime-type>
   <mime-type type="application/x-msmetafile">
-    <alias type="image/x-emf"/>
     <alias type="image/x-wmf"/>
     <acronym>WMF</acronym>
     <_comment>Windows Metafile</_comment>
     <glob pattern="*.wmf"/>
-    <glob pattern="*.emf"/>
+    <magic priority="50">
+      <match value="0xd7cdc69a0000" type="string" offset="0"/>
+      <match value="0x010009000003" type="string" offset="0"/>
+    </magic>
   </mime-type>
   <mime-type type="application/x-msmoney">
     <glob pattern="*.mny"/>
@@ -2713,6 +2827,22 @@
     </magic>
   </mime-type>
 
+  <mime-type type="application/x-tika-msoffice-embedded">
+    <sub-class-of type="application/x-tika-msoffice"/>
+    <_comment>OLE10 Native Embedded Document</_comment>
+  </mime-type>
+
+  <mime-type type="application/x-tika-msworks-spreadsheet">
+    <glob pattern="*.xlr"/>
+    <sub-class-of type="application/vnd.ms-excel"/>
+    <!-- this has to be highter than the Excel match -->
+    <magic priority="60">
+      <match value="0xd0cf11e0a1b11ae1" type="string" offset="0:8">
+         <match value="W\x00k\x00s\x00S\x00S\x00W\x00o\x00r\x00k\x00B\x00o\x00o\x00k" type="string" offset="1152:4096" />
+      </match>
+    </magic>
+  </mime-type>
+
   <!-- =================================================================== -->
   <!-- Office Open XML file formats                                        -->
   <!-- http://www.ecma-international.org/publications/standards/Ecma-376.htm -->
@@ -2726,11 +2856,22 @@
     </magic>
   </mime-type>
 
+  <!-- Note - password protected OOXML files are actually stored in -->
+  <!--  an OLE2 (application/x-tika-msoffice) container -->
+  <mime-type type="application/x-tika-ooxml-protected">
+    <sub-class-of type="application/x-tika-ooxml"/>
+    <_comment>Password Protected OOXML File</_comment>
+  </mime-type>
+
   <mime-type type="application/x-ustar">
     <glob pattern="*.ustar"/>
   </mime-type>
   <mime-type type="application/x-wais-source">
     <glob pattern="*.src"/>
+  </mime-type>
+  <mime-type type="application/x-webarchive">
+    <sub-class-of type="application/x-bplist"/>
+    <glob pattern="*.webarchive"/>
   </mime-type>
   <mime-type type="application/x-x509-ca-cert">
     <glob pattern="*.der"/>
@@ -2913,14 +3054,24 @@
 
   <mime-type type="audio/mobile-xmf"/>
   <mime-type type="audio/mp4">
+    <alias type="audio/x-m4a"/>
     <alias type="audio/x-mp4a"/>
+    <magic priority="60">
+      <match value="ftypM4A " type="string" offset="4"/>
+      <match value="ftypM4B " type="string" offset="4"/>
+      <match value="ftypF4A " type="string" offset="4"/>
+      <match value="ftypF4B " type="string" offset="4"/>
+    </magic>
     <glob pattern="*.mp4a"/>
+    <glob pattern="*.m4a"/>
+    <glob pattern="*.m4b"/>
   </mime-type>
   <mime-type type="audio/mp4a-latm"/>
   <mime-type type="audio/mpa"/>
   <mime-type type="audio/mpa-robust"/>
 
   <mime-type type="audio/mpeg">
+    <alias type="audio/x-mpeg"/>
     <acronym>MP3</acronym>
     <_comment>MPEG-1 Audio Layer 3</_comment>
     <magic priority="20">
@@ -3775,7 +3926,6 @@
     <glob pattern="*.htm"/>
   </mime-type>
 
-  <mime-type type="text/javascript"/>
   <mime-type type="text/parityfec"/>
 
   <mime-type type="text/plain">
@@ -3828,7 +3978,6 @@
     <glob pattern=".htaccess"/>
     <glob pattern="*.ihtml"/>
     <glob pattern="*.jmx"/>
-    <glob pattern="*.jsp"/>
     <glob pattern="*.junit"/>
     <glob pattern="*.jx"/>
     <glob pattern="*.manifest"/>
@@ -3868,6 +4017,15 @@
     <glob pattern="*.xsp"/>
     <glob pattern="*.xweb"/>
     <glob pattern="*.xwelcome"/>
+  </mime-type>
+
+  <mime-type type="application/x-httpd-jsp">
+    <sub-class-of type="text/plain"/>
+    <magic priority="50">
+      <match value="&lt;%@" type="string" offset="0"/>
+      <match value="&lt;%--" type="string" offset="0"/>
+    </magic>
+    <glob pattern="*.jsp"/>
   </mime-type>
 
   <mime-type type="text/prs.fallenstein.rst"/>
@@ -4029,10 +4187,27 @@
   <mime-type type="text/xml"/>
   <mime-type type="text/xml-external-parsed-entity"/>
   <mime-type type="video/3gpp">
+    <magic priority="60">
+      <match value="ftyp3ge6" type="string" offset="4"/>
+      <match value="ftyp3ge7" type="string" offset="4"/>
+      <match value="ftyp3gg6" type="string" offset="4"/>
+      <match value="ftyp3gp1" type="string" offset="4"/>
+      <match value="ftyp3gp2" type="string" offset="4"/>
+      <match value="ftyp3gp3" type="string" offset="4"/>
+      <match value="ftyp3gp4" type="string" offset="4"/>
+      <match value="ftyp3gp5" type="string" offset="4"/>
+      <match value="ftyp3gp6" type="string" offset="4"/>
+      <match value="ftyp3gs7" type="string" offset="4"/>
+    </magic>
     <glob pattern="*.3gp"/>
   </mime-type>
   <mime-type type="video/3gpp-tt"/>
   <mime-type type="video/3gpp2">
+    <magic priority="60">
+      <match value="ftyp3g2a" type="string" offset="4"/>
+      <match value="ftyp3g2b" type="string" offset="4"/>
+      <match value="ftyp3g2c" type="string" offset="4"/>
+    </magic>
     <glob pattern="*.3g2"/>
   </mime-type>
   <mime-type type="video/bmpeg"/>
@@ -4066,10 +4241,16 @@
   <mime-type type="video/mp1s"/>
   <mime-type type="video/mp2p"/>
   <mime-type type="video/mp2t"/>
+
   <mime-type type="video/mp4">
+    <magic priority="60">
+      <match value="ftypmp41" type="string" offset="4"/>
+      <match value="ftypmp42" type="string" offset="4"/>
+    </magic>
     <glob pattern="*.mp4"/>
     <glob pattern="*.mp4v"/>
     <glob pattern="*.mpg4"/>
+    <sub-class-of type="video/quicktime" />
   </mime-type>
   <mime-type type="video/mp4v-es"/>
 
@@ -4104,6 +4285,7 @@
     <magic priority="50">
       <match value="moov" type="string" offset="4"/>
       <match value="mdat" type="string" offset="4"/>
+      <!-- General match, specific ftypXXX ones present for subtypes -->
       <match value="ftyp" type="string" offset="4"/>
     </magic>
     <glob pattern="*.qt"/>
@@ -4174,7 +4356,13 @@
   </mime-type>
 
   <mime-type type="video/x-m4v">
+    <magic priority="60">
+      <match value="ftypM4V " type="string" offset="4"/>
+      <match value="ftypM4VH" type="string" offset="4"/>
+      <match value="ftypM4VP" type="string" offset="4"/>
+    </magic>
     <glob pattern="*.m4v"/>
+    <sub-class-of type="video/mp4" />
   </mime-type>
 
   <mime-type type="video/x-mng">

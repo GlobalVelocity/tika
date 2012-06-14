@@ -40,6 +40,7 @@ import org.apache.tika.mime.MediaTypeRegistry;
 import org.apache.tika.mime.MimeTypeException;
 import org.apache.tika.mime.MimeTypes;
 import org.apache.tika.mime.MimeTypesFactory;
+import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.CompositeParser;
 import org.apache.tika.parser.DefaultParser;
 import org.apache.tika.parser.Parser;
@@ -54,6 +55,20 @@ import org.xml.sax.SAXException;
  * Parse xml config file.
  */
 public class TikaConfig {
+
+    private static MimeTypes getDefaultMimeTypes() {
+        return MimeTypes.getDefaultMimeTypes();
+    }
+
+    private static Detector getDefaultDetector(
+            MimeTypes types, ServiceLoader loader) {
+        return new DefaultDetector(types, loader);
+    }
+
+    private static CompositeParser getDefaultParser(
+            MimeTypes types, ServiceLoader loader) {
+        return new DefaultParser(types.getMediaTypeRegistry(), loader);
+    }
 
     private final CompositeParser parser;
     private final Detector detector;
@@ -90,10 +105,15 @@ public class TikaConfig {
     }
 
     public TikaConfig(Element element) throws TikaException, IOException {
-        this(element, ServiceLoader.getContextClassLoader());
+        this(element, new ServiceLoader());
     }
 
     public TikaConfig(Element element, ClassLoader loader)
+            throws TikaException, IOException {
+        this(element, new ServiceLoader(loader));
+    }
+
+    private TikaConfig(Element element, ServiceLoader loader)
             throws TikaException, IOException {
         this.mimeTypes = typesFromDomElement(element);
         this.detector = detectorFromDomElement(element, mimeTypes, loader);
@@ -114,9 +134,10 @@ public class TikaConfig {
      */
     public TikaConfig(ClassLoader loader)
             throws MimeTypeException, IOException {
-        this.mimeTypes = MimeTypes.getDefaultMimeTypes();
-        this.detector = new DefaultDetector(mimeTypes, loader);
-        this.parser = new DefaultParser(mimeTypes.getMediaTypeRegistry(), loader);
+        ServiceLoader serviceLoader = new ServiceLoader(loader);
+        this.mimeTypes = getDefaultMimeTypes();
+        this.detector = getDefaultDetector(mimeTypes, serviceLoader);
+        this.parser = getDefaultParser(mimeTypes, serviceLoader);
     }
 
     /**
@@ -137,42 +158,52 @@ public class TikaConfig {
      * @throws TikaException if problem with MimeTypes or parsing XML config
      */
     public TikaConfig() throws TikaException, IOException {
+        ServiceLoader loader = new ServiceLoader();
+
         String config = System.getProperty("tika.config");
         if (config == null) {
             config = System.getenv("TIKA_CONFIG");
         }
+
         if (config == null) {
-            this.mimeTypes = MimeTypes.getDefaultMimeTypes();
-            this.parser = new DefaultParser(mimeTypes.getMediaTypeRegistry());
-            this.detector = new DefaultDetector(mimeTypes);
+            this.mimeTypes = getDefaultMimeTypes();
+            this.parser = getDefaultParser(mimeTypes, loader);
+            this.detector = getDefaultDetector(mimeTypes, loader);
         } else {
-            ClassLoader loader = ServiceLoader.getContextClassLoader();
-            InputStream stream;
+            // Locate the given configuration file
+            InputStream stream = null;
             File file = new File(config);
             if (file.isFile()) {
                 stream = new FileInputStream(file);
-            } else {
+            }
+            if (stream == null) {
+                try {
+                    stream = new URL(config).openStream();
+                } catch (IOException ignore) {
+                }
+            }
+            if (stream == null) {
                 stream = loader.getResourceAsStream(config);
             }
-            if (stream != null) {
-                try {
-                    Element element =
-                        getBuilder().parse(stream).getDocumentElement();
-                    this.mimeTypes = typesFromDomElement(element);
-                    this.parser =
-                        parserFromDomElement(element, mimeTypes, loader);
-                    this.detector =
-                       detectorFromDomElement(element, mimeTypes, loader);
-                } catch (SAXException e) {
-                    throw new TikaException(
-                            "Specified Tika configuration has syntax errors: "
-                            + config, e);
-                } finally {
-                    stream.close();
-                }
-            } else {
+            if (stream == null) {
                 throw new TikaException(
                         "Specified Tika configuration not found: " + config);
+            }
+
+            try {
+                Element element =
+                        getBuilder().parse(stream).getDocumentElement();
+                this.mimeTypes = typesFromDomElement(element);
+                this.parser =
+                        parserFromDomElement(element, mimeTypes, loader);
+                this.detector =
+                        detectorFromDomElement(element, mimeTypes, loader);
+            } catch (SAXException e) {
+                throw new TikaException(
+                        "Specified Tika configuration has syntax errors: "
+                                + config, e);
+            } finally {
+                stream.close();
             }
         }
     }
@@ -270,12 +301,12 @@ public class TikaConfig {
         if (mtr != null && mtr.hasAttribute("resource")) {
             return MimeTypesFactory.create(mtr.getAttribute("resource"));
         } else {
-            return MimeTypes.getDefaultMimeTypes();
+            return getDefaultMimeTypes();
         }
     }
 
     private static CompositeParser parserFromDomElement(
-            Element element, MimeTypes mimeTypes, ClassLoader loader)
+            Element element, MimeTypes mimeTypes, ServiceLoader loader)
             throws TikaException, IOException {
         List<Parser> parsers = new ArrayList<Parser>();
         NodeList nodes = element.getElementsByTagName("parser");
@@ -284,13 +315,15 @@ public class TikaConfig {
             String name = node.getAttribute("class");
 
             try {
-                Class<?> parserClass = Class.forName(name, true, loader);
-                Object instance = parserClass.newInstance();
-                if (!(instance instanceof Parser)) {
+                Class<? extends Parser> parserClass =
+                        loader.getServiceClass(Parser.class, name);
+                // https://issues.apache.org/jira/browse/TIKA-866
+                if (AutoDetectParser.class.isAssignableFrom(parserClass)) {
                     throw new TikaException(
-                            "Configured class is not a Tika Parser: " + name);
+                            "AutoDetectParser not supported in a <parser>"
+                            + " configuration element: " + name);
                 }
-                Parser parser = (Parser) instance;
+                Parser parser = parserClass.newInstance();
 
                 NodeList mimes = node.getElementsByTagName("mime");
                 if (mimes.getLength() > 0) {
@@ -311,7 +344,7 @@ public class TikaConfig {
                 parsers.add(parser);
             } catch (ClassNotFoundException e) {
                 throw new TikaException(
-                        "Configured parser class not found: " + name, e);
+                        "Unable to find a parser class: " + name, e);
             } catch (IllegalAccessException e) {
                 throw new TikaException(
                         "Unable to access a parser class: " + name, e);
@@ -320,11 +353,16 @@ public class TikaConfig {
                         "Unable to instantiate a parser class: " + name, e);
             }
         }
-        return new CompositeParser(mimeTypes.getMediaTypeRegistry(), parsers);
+        if (parsers.isEmpty()) {
+            return getDefaultParser(mimeTypes, loader);
+        } else {
+            MediaTypeRegistry registry = mimeTypes.getMediaTypeRegistry();
+            return new CompositeParser(registry, parsers);
+        }
     }
 
     private static Detector detectorFromDomElement(
-          Element element, MimeTypes mimeTypes, ClassLoader loader)
+          Element element, MimeTypes mimeTypes, ServiceLoader loader)
           throws TikaException, IOException {
        List<Detector> detectors = new ArrayList<Detector>();
        NodeList nodes = element.getElementsByTagName("detector");
@@ -333,17 +371,12 @@ public class TikaConfig {
            String name = node.getAttribute("class");
 
            try {
-               Class<?> detectorClass = Class.forName(name, true, loader);
-               Object instance = detectorClass.newInstance();
-               if (!(instance instanceof Detector)) {
-                   throw new TikaException(
-                           "Configured class is not a Tika Detector: " + name);
-               }
-               Detector detector = (Detector) instance;
-               detectors.add(detector);
+               Class<? extends Detector> detectorClass =
+                       loader.getServiceClass(Detector.class, name);
+               detectors.add(detectorClass.newInstance());
            } catch (ClassNotFoundException e) {
                throw new TikaException(
-                       "Configured detector class not found: " + name, e);
+                       "Unable to find a detector class: " + name, e);
            } catch (IllegalAccessException e) {
                throw new TikaException(
                        "Unable to access a detector class: " + name, e);
@@ -352,7 +385,11 @@ public class TikaConfig {
                        "Unable to instantiate a detector class: " + name, e);
            }
        }
-       
-       return new CompositeDetector(mimeTypes.getMediaTypeRegistry(), detectors);
+       if (detectors.isEmpty()) {
+           return getDefaultDetector(mimeTypes, loader);
+       } else {
+           MediaTypeRegistry registry = mimeTypes.getMediaTypeRegistry();
+           return new CompositeDetector(registry, detectors);
+       }
     }
 }

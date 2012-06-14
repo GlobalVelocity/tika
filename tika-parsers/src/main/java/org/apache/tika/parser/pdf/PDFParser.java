@@ -28,16 +28,21 @@ import org.apache.pdfbox.cos.COSArray;
 import org.apache.pdfbox.cos.COSBase;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.cos.COSString;
+import org.apache.pdfbox.io.RandomAccess;
+import org.apache.pdfbox.io.RandomAccessFile;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.CloseShieldInputStream;
+import org.apache.tika.io.TemporaryResources;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.PagedText;
 import org.apache.tika.metadata.Property;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.PasswordProvider;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
@@ -57,14 +62,24 @@ public class PDFParser extends AbstractParser {
     // True if we let PDFBox "guess" where spaces should go:
     private boolean enableAutoSpace = true;
 
+    // True if we let PDFBox remove duplicate overlapping text:
+    private boolean suppressDuplicateOverlappingText;
+
+    // True if we extract annotation text ourselves
+    // (workaround for PDFBOX-1143):
+    private boolean extractAnnotationText = true;
+
+    // True if we should sort text tokens by position
+    // (necessary for some PDFs, but messes up other PDFs):
+    private boolean sortByPosition = false;
+
     /**
      * Metadata key for giving the document password to the parser.
      *
      * @since Apache Tika 0.5
+     * @deprecated Supply a {@link PasswordProvider} on the {@link ParseContext} instead
      */
     public static final String PASSWORD = "org.apache.tika.parser.pdf.password";
-
-    private boolean extractAnnotationText = true;
 
     private static final Set<MediaType> SUPPORTED_TYPES =
         Collections.singleton(MediaType.application("pdf"));
@@ -77,15 +92,44 @@ public class PDFParser extends AbstractParser {
             InputStream stream, ContentHandler handler,
             Metadata metadata, ParseContext context)
             throws IOException, SAXException, TikaException {
-        PDDocument pdfDocument =
-            PDDocument.load(new CloseShieldInputStream(stream), true);
+       
+        PDDocument pdfDocument = null;
+        TemporaryResources tmp = new TemporaryResources();
+
         try {
+            // PDFBox can process entirely in memory, or can use a temp file
+            //  for unpacked / processed resources
+            // Decide which to do based on if we're reading from a file or not already
+            TikaInputStream tstream = TikaInputStream.cast(stream);
+            if (tstream != null && tstream.hasFile()) {
+               // File based, take that as a cue to use a temporary file
+               RandomAccess scratchFile = new RandomAccessFile(tmp.createTemporaryFile(), "rw");
+               pdfDocument = PDDocument.load(new CloseShieldInputStream(stream), scratchFile, true);
+            } else {
+               // Go for the normal, stream based in-memory parsing
+               pdfDocument = PDDocument.load(new CloseShieldInputStream(stream), true);
+            }
+           
             if (pdfDocument.isEncrypted()) {
+                String password = null;
+                
+                // Did they supply a new style Password Provider?
+                PasswordProvider passwordProvider = context.get(PasswordProvider.class);
+                if (passwordProvider != null) {
+                   password = passwordProvider.getPassword(metadata);
+                }
+                
+                // Fall back on the old style metadata if set
+                if (password == null && metadata.get(PASSWORD) != null) {
+                   password = metadata.get(PASSWORD);
+                }
+                
+                // If no password is given, use an empty string as the default
+                if (password == null) {
+                   password = "";
+                }
+               
                 try {
-                    String password = metadata.get(PASSWORD);
-                    if (password == null) {
-                        password = "";
-                    }
                     pdfDocument.decrypt(password);
                 } catch (Exception e) {
                     // Ignore
@@ -93,9 +137,14 @@ public class PDFParser extends AbstractParser {
             }
             metadata.set(Metadata.CONTENT_TYPE, "application/pdf");
             extractMetadata(pdfDocument, metadata);
-            PDF2XHTML.process(pdfDocument, handler, metadata, extractAnnotationText, enableAutoSpace);
+            PDF2XHTML.process(pdfDocument, handler, metadata,
+                              extractAnnotationText, enableAutoSpace,
+                              suppressDuplicateOverlappingText, sortByPosition);
         } finally {
-            pdfDocument.close();
+            if (pdfDocument != null) {
+               pdfDocument.close();
+            }
+            tmp.dispose();
         }
     }
 
@@ -200,4 +249,40 @@ public class PDFParser extends AbstractParser {
     public boolean getExtractAnnotationText() {
         return extractAnnotationText;
     }
+
+    /**
+     *  If true, the parser should try to remove duplicated
+     *  text over the same region.  This is needed for some
+     *  PDFs that achieve bolding by re-writing the same
+     *  text in the same area.  Note that this can
+     *  slow down extraction substantially (PDFBOX-956) and
+     *  sometimes remove characters that were not in fact
+     *  duplicated (PDFBOX-1155).  By default this is disabled.
+     */
+    public void setSuppressDuplicateOverlappingText(boolean v) {
+        suppressDuplicateOverlappingText = v;
+    }
+
+    /** @see #setSuppressDuplicateOverlappingText. */
+    public boolean getSuppressDuplicateOverlappingText() {
+        return suppressDuplicateOverlappingText;
+    }
+
+    /**
+     *  If true, sort text tokens by their x/y position
+     *  before extracting text.  This may be necessary for
+     *  some PDFs (if the text tokens are not rendered "in
+     *  order"), while for other PDFs it can produce the
+     *  wrong result (for example if there are 2 columns,
+     *  the text will be interleaved).  Default is false.
+     */
+    public void setSortByPosition(boolean v) {
+        sortByPosition = v;
+    }
+
+    /** @see #setSortByPosition. */
+    public boolean getSortByPosition() {
+        return sortByPosition;
+    }
+
 }

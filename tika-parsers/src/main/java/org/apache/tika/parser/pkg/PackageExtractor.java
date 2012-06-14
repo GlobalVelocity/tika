@@ -33,6 +33,8 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
 import org.apache.tika.io.CloseShieldInputStream;
+import org.apache.tika.io.TemporaryResources;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.XHTMLContentHandler;
@@ -149,9 +151,10 @@ class PackageExtractor {
      * @param xhtml content handler
      * @throws IOException if an IO error occurs
      * @throws SAXException if a SAX error occurs
+     * @throws TikaException if another error occurs
      */
     public void unpack(ArchiveInputStream archive, XHTMLContentHandler xhtml)
-            throws IOException, SAXException {
+            throws IOException, SAXException, TikaException {
         try {
             ArchiveEntry entry = archive.getNextEntry();
             while (entry != null) {
@@ -164,7 +167,15 @@ class PackageExtractor {
                             entrydata.set(Metadata.RESOURCE_NAME_KEY, name);
                         }
                         if (extractor.shouldParseEmbedded(entrydata)) {
-                            extractor.parseEmbedded(archive, xhtml, entrydata, true);
+                            // For detectors to work, we need a mark/reset supporting
+                            //  InputStream, which ArchiveInputStream isn't, so wrap
+                            TemporaryResources tmp = new TemporaryResources();
+                            try {
+                                TikaInputStream stream = TikaInputStream.get(archive, tmp);
+                                extractor.parseEmbedded(stream, xhtml, entrydata, true);
+                            } finally {
+                                tmp.dispose();
+                            }
                         }
                     } else if (name != null && name.length() > 0) {
                         xhtml.element("p", name);

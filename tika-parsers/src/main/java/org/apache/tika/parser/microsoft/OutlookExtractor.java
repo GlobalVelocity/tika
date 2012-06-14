@@ -44,6 +44,7 @@ import org.apache.tika.parser.rtf.RTFParser;
 import org.apache.tika.parser.txt.CharsetDetector;
 import org.apache.tika.parser.txt.CharsetMatch;
 import org.apache.tika.sax.BodyContentHandler;
+import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
@@ -185,6 +186,7 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
            }
            
            boolean doneBody = false;
+           xhtml.startElement("div", "class", "message-body");
            if(htmlChunk != null) {
               byte[] data = null;
               if(htmlChunk instanceof ByteChunk) {
@@ -193,10 +195,11 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
                  data = ((StringChunk)htmlChunk).getRawValue();
               }
               if(data != null) {
+                  // nocommit same problem here?
                  HtmlParser htmlParser = new HtmlParser();
                  htmlParser.parse(
                        new ByteArrayInputStream(data),
-                       new BodyContentHandler(xhtml), 
+                       new EmbeddedContentHandler(new BodyContentHandler(xhtml)), 
                        new Metadata(), new ParseContext()
                  );
                  doneBody = true;
@@ -210,13 +213,14 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
               RTFParser rtfParser = new RTFParser();
               rtfParser.parse(
                               new ByteArrayInputStream(rtf.getData()),
-                              xhtml, new Metadata(), new ParseContext()
-                              );
+                              new EmbeddedContentHandler(new BodyContentHandler(xhtml)),
+                              new Metadata(), new ParseContext());
               doneBody = true;
            }
            if(textChunk != null && !doneBody) {
               xhtml.element("p", ((StringChunk)textChunk).getValue());
            }
+           xhtml.endElement("div");
            
            // Process the attachments
            List<String> attList = new ArrayList<String>();
@@ -249,7 +253,6 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
                }
 
                xhtml.endElement("div");
-               
            }
            if(!attList.isEmpty()){
                String attMeta = "";

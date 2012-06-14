@@ -264,11 +264,4 @@
       </plugins>
     </pluginManagement>
   </build>
-
-
-  <scm>
-    <connection>scm:svn:http://svn.apache.org/repos/asf/maven/pom/tags/1.0/tika-parent</connection>
-    <developerConnection>scm:svn:https://svn.apache.org/repos/asf/maven/pom/tags/1.0/tika-parent</developerConnection>
-    <url>http://svn.apache.org/viewvc/maven/pom/tags/1.0/tika-parent</url>
-  </scm>
 </project>

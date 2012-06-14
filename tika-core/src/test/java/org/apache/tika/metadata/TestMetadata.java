@@ -253,6 +253,7 @@ public class TestMetadata extends TestCase {
      */
     public void testGetSetDate() {
         Metadata meta = new Metadata();
+        long hour = 60 * 60 * 1000; 
         
         // Isn't initially set, will get null back
         assertEquals(null, meta.get(Metadata.CREATION_DATE));
@@ -308,6 +309,13 @@ public class TestMetadata extends TestCase {
         
         meta.set(Metadata.CREATION_DATE, "1969-12-31T12:00:01-12:00");
         assertEquals(1000, meta.getDate(Metadata.CREATION_DATE).getTime());
+        
+        // Dates without times, come in at midday UTC
+        meta.set(Metadata.CREATION_DATE, "1970-01-01");
+        assertEquals(12*hour, meta.getDate(Metadata.CREATION_DATE).getTime());
+        
+        meta.set(Metadata.CREATION_DATE, "1970:01:01");
+        assertEquals(12*hour, meta.getDate(Metadata.CREATION_DATE).getTime());
     }
     
     /**

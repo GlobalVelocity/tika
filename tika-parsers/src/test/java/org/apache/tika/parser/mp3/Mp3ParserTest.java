@@ -109,7 +109,7 @@ public class Mp3ParserTest extends TestCase {
         assertEquals(null, metadata.get(XMPDM.COMPOSER));
         assertEquals("2008", metadata.get(XMPDM.RELEASE_DATE));
         assertEquals("Rock", metadata.get(XMPDM.GENRE));
-        assertEquals("XXXID3v1 Comment\nTest Comment", metadata.get(XMPDM.LOG_COMMENT.getName()));
+        assertEquals("XXX - ID3v1 Comment\nTest Comment", metadata.get(XMPDM.LOG_COMMENT.getName()));
         assertEquals("1", metadata.get(XMPDM.TRACK_NUMBER));
         
         assertEquals("44100", metadata.get(XMPDM.AUDIO_SAMPLE_RATE));
@@ -184,6 +184,40 @@ public class Mp3ParserTest extends TestCase {
         assertEquals("44100", metadata.get("samplerate"));
         assertEquals("2", metadata.get("channels"));
     }
+    
+    /**
+     * Tests that a file with characters not in the ISO 8859-1
+     *  range is correctly handled
+     */
+    public void testMp3ParsingID3i18n() throws Exception {
+       Parser parser = new AutoDetectParser(); // Should auto-detect!
+       ContentHandler handler = new BodyContentHandler();
+       Metadata metadata = new Metadata();
+
+       InputStream stream = Mp3ParserTest.class.getResourceAsStream(
+               "/test-documents/testMP3i18n.mp3");
+       try {
+           parser.parse(stream, handler, metadata, new ParseContext());
+       } finally {
+           stream.close();
+       }
+
+       assertEquals("audio/mpeg", metadata.get(Metadata.CONTENT_TYPE));
+       assertEquals("Une chason en Fran\u00e7ais", metadata.get(Metadata.TITLE));
+       assertEquals("Test Artist \u2468\u2460", metadata.get(Metadata.AUTHOR));
+       assertEquals("Test Artist \u2468\u2460", metadata.get(XMPDM.ARTIST));
+       assertEquals("Test Album \u2460\u2468", metadata.get(XMPDM.ALBUM));
+
+       assertEquals(
+             "Eng - Comment Desc\nThis is a \u1357\u2468\u2460 Comment", 
+             metadata.get(XMPDM.LOG_COMMENT)
+       );
+       
+       assertEquals("MPEG 3 Layer III Version 1", metadata.get("version"));
+       assertEquals("44100", metadata.get("samplerate"));
+       assertEquals("2", metadata.get("channels"));
+   }
+    
     
     /**
      * Tests that a file with both lyrics and
