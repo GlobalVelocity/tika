@@ -128,11 +128,11 @@
               org.apache.tika.*,
               *;resolution:=optional
             </Import-Package>
-            <Export-Package>
+            <_exportcontents>
               !org.apache.tika.parser,
               !org.apache.tika.parser.external,
               org.apache.tika.parser.*
-            </Export-Package>
+            </_exportcontents>
             <Service-Component>
               OSGI-INF/serviceComponents.xml
             </Service-Component>
