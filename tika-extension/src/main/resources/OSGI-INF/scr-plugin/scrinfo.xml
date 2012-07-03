@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<components xmlns:scr="http://www.osgi.org/xmlns/scr/v1.0.0">
+    <scr:component enabled="true" name="com.globalvelocity.tika.detector.JsonDetector">
+        <implementation class="com.globalvelocity.tika.detector.JsonDetector"/>
+        <service servicefactory="false">
+            <provide interface="org.apache.tika.detect.Detector"/>
+        </service>
+        <property name="service.pid" value="com.globalvelocity.tika.detector.JsonDetector" private="false"/>
+    </scr:component>
+    <scr:component enabled="true" name="org.apache.tika.parser.parser.JsonParser">
+        <implementation class="org.apache.tika.parser.parser.JsonParser"/>
+        <service servicefactory="false">
+            <provide interface="org.apache.tika.parser.Parser"/>
+        </service>
+        <property name="service.pid" value="org.apache.tika.parser.parser.JsonParser" private="false"/>
+    </scr:component>
+</components>
