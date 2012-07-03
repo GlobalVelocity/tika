@@ -781,8 +781,8 @@ public class TikaCLI {
     }
 
     /**
-     * Uses GSON to do the JSON escaping, but does
-     *  the general JSON glueing ourselves.
+     * Uses GSON to do the JsonExtractor$ escaping, but does
+     *  the general JsonExtractor$ glueing ourselves.
      */
     private class NoDocumentJSONMetHandler extends NoDocumentMetHandler {
         private NumberFormat formatter;
