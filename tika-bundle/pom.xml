@@ -31,7 +31,7 @@
 
   <artifactId>tika-bundle</artifactId>
   <packaging>bundle</packaging>
-    <name>Global Velocity :: Product :: Source :: Tika-Bundle</name>
+    <name>Global Velocity :: Product :: Source :: Tika :: Tika-Bundle</name>
   <description>
     OSGi bundle that contains the tika-parsers component and all its
     upstream dependencies that aren't OSGI bundles by themselves. This
