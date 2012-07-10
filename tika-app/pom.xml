@@ -46,7 +46,7 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>com.globalvelocity</groupId>
             <artifactId>tika-extension</artifactId>
             <version>${project.version}</version>
         </dependency>
