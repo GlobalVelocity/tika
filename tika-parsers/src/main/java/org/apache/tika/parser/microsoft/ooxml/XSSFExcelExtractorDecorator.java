@@ -349,7 +349,7 @@ public class XSSFExcelExtractorDecorator extends AbstractOOXMLExtractor {
     public MetadataExtractor getMetadataExtractor() {
         return new MetadataExtractor(extractor) {
             @Override
-            public void extract(Metadata metadata) throws TikaException {
+            public void extract(Metadata metadata) throws TikaException, OpenXML4JException, IOException, XmlException, SAXException  {
                 super.extract(metadata);
 
                 metadata.set(TikaMetadataKeys.PROTECTED, "false");

@@ -16,22 +16,41 @@
  */
 package org.apache.tika.parser.microsoft.ooxml;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
+import java.util.regex.Pattern;
 
 import org.apache.poi.POIXMLTextExtractor;
 import org.apache.poi.POIXMLProperties.CoreProperties;
 import org.apache.poi.POIXMLProperties.CustomProperties;
 import org.apache.poi.POIXMLProperties.ExtendedProperties;
+import org.apache.poi.openxml4j.exceptions.OpenXML4JException;
+import org.apache.poi.openxml4j.opc.OPCPackage;
+import org.apache.poi.openxml4j.opc.PackagePart;
 import org.apache.poi.openxml4j.opc.internal.PackagePropertiesPart;
 import org.apache.poi.openxml4j.util.Nullable;
+import org.apache.poi.xslf.extractor.XSLFPowerPointExtractor;
 import org.apache.poi.xssf.extractor.XSSFEventBasedExcelExtractor;
+import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.PagedText;
 import org.apache.tika.metadata.Property;
+import org.apache.tika.parser.microsoft.ooxml.mach1Extraction.Mach1ExcelHandler;
+import org.apache.tika.parser.microsoft.ooxml.mach1Extraction.Mach1PowerPointHandler;
+import org.apache.tika.parser.microsoft.ooxml.mach1Extraction.Mach1WordHandler;
+import org.apache.xmlbeans.XmlException;
 import org.openxmlformats.schemas.officeDocument.x2006.customProperties.CTProperty;
 import org.openxmlformats.schemas.officeDocument.x2006.extendedProperties.CTProperties;
+import org.xml.sax.*;
+import org.xml.sax.helpers.DefaultHandler;
+
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
 
 /**
  * OOXML metadata extractor.
@@ -48,13 +67,46 @@ public class MetadataExtractor {
         this.extractor = extractor;
     }
 
-    public void extract(Metadata metadata) throws TikaException {
+    public void extract(Metadata metadata) throws TikaException, IOException, XmlException, SAXException{
+        extractMach1Tag(metadata);
         if (extractor.getDocument() != null ||
               (extractor instanceof XSSFEventBasedExcelExtractor && 
                extractor.getPackage() != null)) {
             extractMetadata(extractor.getCoreProperties(), metadata);
             extractMetadata(extractor.getExtendedProperties(), metadata);
             extractMetadata(extractor.getCustomProperties(), metadata);
+        }
+    }
+
+    private void extractMach1Tag(Metadata metadata) throws IOException, XmlException, SAXException  {
+        OPCPackage pack = extractor.getPackage();
+        Pattern namePattern = null;
+        DefaultHandler mach1Handler = null;
+
+        if (extractor instanceof XSLFPowerPointExtractor) {
+            namePattern = Pattern.compile("/docProps/custom.xml");
+            mach1Handler = new Mach1PowerPointHandler(metadata);
+        }
+        else if (extractor instanceof XSSFEventBasedExcelExtractor) {
+            namePattern = Pattern.compile("/xl/worksheets/sheet1.xml");
+            mach1Handler = new Mach1ExcelHandler(metadata);
+        }
+        else if (extractor instanceof XWPFWordExtractor) {
+            namePattern = Pattern.compile("/word/styles.xml");
+            mach1Handler = new Mach1WordHandler(metadata);
+        }
+        
+        if (pack != null && namePattern != null && mach1Handler != null) {
+            try {
+                List<PackagePart> matchList = pack.getPartsByName(namePattern);
+                if (matchList.size() > 0) {
+                    InputStream stream;
+                    stream = matchList.get(0).getInputStream();
+                    SAXParser parser = SAXParserFactory.newInstance().newSAXParser();
+                    parser.parse(stream, mach1Handler);
+                }
+            }
+            catch (ParserConfigurationException pce) {}    
         }
     }
 
