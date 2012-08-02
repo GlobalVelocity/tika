@@ -19,8 +19,8 @@ public class Mach1PowerPointHandler extends DefaultHandler {
     private Metadata metadata;
     private String mach1Attribute = "vt:lpwstr";
     private String markerName = "property";
-    private String markerAttribute = "fmtid";
-    private String markerAttributeValue = "{D5CDD505-2E9C-101B-9397-08002B2CF9AE}";
+    private String markerAttribute = "name";
+    private String markerAttributeValue = "m1dprop_";
     
     private StringBuilder metadataValue = new StringBuilder();
 
@@ -36,7 +36,7 @@ public class Mach1PowerPointHandler extends DefaultHandler {
     public void startElement(String uri, String localName, String name, Attributes attributes) throws SAXException {
         if (name.equals(markerName)) {
             String value = attributes.getValue(markerAttribute);
-            if (value.equals(markerAttributeValue)) {
+            if (value != null && value.startsWith(markerAttributeValue)) {
                 withinProperty = true;
             }
         }
