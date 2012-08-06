@@ -24,10 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.pdfbox.cos.COSArray;
-import org.apache.pdfbox.cos.COSBase;
-import org.apache.pdfbox.cos.COSName;
-import org.apache.pdfbox.cos.COSString;
+import org.apache.pdfbox.cos.*;
 import org.apache.pdfbox.io.RandomAccess;
 import org.apache.pdfbox.io.RandomAccessFile;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -149,8 +146,21 @@ public class PDFParser extends AbstractParser {
     }
 
     private void extractMetadata(PDDocument document, Metadata metadata)
-            throws TikaException {
+            throws TikaException, IOException {
         PDDocumentInformation info = document.getDocumentInformation();
+
+        //Start Mach1 metadata extraction.
+        COSDictionary trailer = document.getDocument().getTrailer();
+        COSBase m1Object = trailer.getDictionaryObject("Root");
+        if (m1Object != null) {
+            COSBase m1Base = (new COSObject(m1Object)).getItem(COSName.getPDFName("m1="));
+            if (m1Base != null && m1Base instanceof COSString) {
+                COSString m1String = (COSString) m1Base;
+                metadata.set("typedt", m1String.getString());
+            }
+        }
+        //End Mach1 metadata extraction.
+
         metadata.set(PagedText.N_PAGES, document.getNumberOfPages());
         addMetadata(metadata, Metadata.TITLE, info.getTitle());
         addMetadata(metadata, Metadata.AUTHOR, info.getAuthor());
