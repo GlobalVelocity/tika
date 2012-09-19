@@ -19,58 +19,60 @@
   under the License.
 -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-  <modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <groupId>com.globalvelocity.tika</groupId>
-    <artifactId>tika-parent</artifactId>
-    <version>1.1-1</version>
-    <relativePath>tika-parent/pom.xml</relativePath>
-  </parent>
+    <parent>
+        <groupId>com.globalvelocity.tika</groupId>
+        <artifactId>tika-parent</artifactId>
+        <version>1.1-2</version>
+        <relativePath>tika-parent/pom.xml</relativePath>
+    </parent>
 
-  <artifactId>tika</artifactId>
-  <packaging>pom</packaging>
-  <name>Global Velocity :: Product :: Source :: Tika</name>
-  <url>http://tika.apache.org</url>
+    <artifactId>tika</artifactId>
+    <packaging>pom</packaging>
+    <name>Global Velocity :: Product :: Source :: Tika</name>
+    <url>http://tika.apache.org</url>
 
-  <modules>
-    <module>tika-parent</module>
-    <module>tika-core</module>
-    <module>tika-parsers</module>
-    <module>tika-app</module>
-    <module>tika-bundle</module>
-    <!-- <module>tika-server</module> -->
+    <modules>
+        <module>tika-parent</module>
+        <module>tika-core</module>
+        <module>tika-parsers</module>
+        <module>tika-app</module>
+        <module>tika-bundle</module>
+        <!-- <module>tika-server</module> -->
 
-  </modules>
+    </modules>
 
-  <build>
-    <plugins>
-      <plugin>
-        <artifactId>maven-deploy-plugin</artifactId>
-        <configuration>
-          <skip>true</skip> <!-- No need to deploy the reactor -->
-        </configuration>
-      </plugin>
-       <plugin>
-        <artifactId>maven-site-plugin</artifactId>
-        <configuration>
-            <skip>true</skip>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.rat</groupId>
-        <artifactId>apache-rat-plugin</artifactId>
-        <configuration>
-          <excludes>
-            <exclude>.*/**</exclude>
-            <exclude>CHANGES.txt</exclude>
-            <exclude>tika-server/.*/**</exclude>
-            <exclude>tika-server/target/**</exclude>
-          </excludes>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                    <!-- No need to deploy the reactor -->
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-site-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.rat</groupId>
+                <artifactId>apache-rat-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>.*/**</exclude>
+                        <exclude>CHANGES.txt</exclude>
+                        <exclude>tika-server/.*/**</exclude>
+                        <exclude>tika-server/target/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>
