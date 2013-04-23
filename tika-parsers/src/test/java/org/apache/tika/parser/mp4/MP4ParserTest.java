@@ -22,6 +22,7 @@ import junit.framework.TestCase;
 
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.metadata.XMPDM;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
@@ -31,10 +32,8 @@ import org.xml.sax.ContentHandler;
 
 /**
  * Test case for parsing mp4 files.
- * 
- * TODO Work out why this test passes in Eclipse, but fails from Maven
  */
-public abstract class MP4ParserTest extends TestCase {
+public class MP4ParserTest extends TestCase {
     /**
      * Test that we can extract information from
      *  a M4A MP4 Audio file
@@ -54,10 +53,11 @@ public abstract class MP4ParserTest extends TestCase {
 
         // Check core properties
         assertEquals("audio/mp4", metadata.get(Metadata.CONTENT_TYPE));
-        assertEquals("Test Title", metadata.get(Metadata.TITLE));
+        assertEquals("Test Title", metadata.get(TikaCoreProperties.TITLE));
+        assertEquals("Test Artist", metadata.get(TikaCoreProperties.CREATOR));
         assertEquals("Test Artist", metadata.get(Metadata.AUTHOR));
-        assertEquals("2012-01-28T18:39:18Z", metadata.get(Metadata.CREATION_DATE));
-        assertEquals("2012-01-28T18:40:25Z", metadata.get(Metadata.MODIFIED));
+        assertEquals("2012-01-28T18:39:18Z", metadata.get(TikaCoreProperties.CREATED));
+        assertEquals("2012-01-28T18:40:25Z", metadata.get(TikaCoreProperties.MODIFIED));
 
         // Check the textual contents
         String content = handler.toString();

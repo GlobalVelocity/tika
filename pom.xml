@@ -26,7 +26,7 @@
     <parent>
         <groupId>com.globalvelocity.tika</groupId>
         <artifactId>tika-parent</artifactId>
-        <version>1.1-2</version>
+        <version>1.2-2-SNAPSHOT</version>
         <relativePath>tika-parent/pom.xml</relativePath>
     </parent>
 
@@ -39,6 +39,7 @@
         <module>tika-parent</module>
         <module>tika-core</module>
         <module>tika-parsers</module>
+        <module>tika-xmp</module>
         <module>tika-app</module>
         <module>tika-bundle</module>
         <!-- <module>tika-server</module> -->
@@ -48,7 +49,9 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
+                <version>2.7</version>
                 <configuration>
                     <skip>true</skip>
                     <!-- No need to deploy the reactor -->
@@ -69,6 +72,12 @@
                         <exclude>CHANGES.txt</exclude>
                         <exclude>tika-server/.*/**</exclude>
                         <exclude>tika-server/target/**</exclude>
+                        <exclude>tika-dotnet/AssemblyInfo.cs</exclude>
+                        <exclude>tika-dotnet/Tika.csproj</exclude>
+                        <exclude>tika-dotnet/Tika.sln</exclude>
+                        <exclude>tika-dotnet/Tika.sln.cache</exclude>
+                        <exclude>tika-dotnet/obj/**</exclude>
+                        <exclude>tika-dotnet/target/**</exclude>
                     </excludes>
                 </configuration>
             </plugin>

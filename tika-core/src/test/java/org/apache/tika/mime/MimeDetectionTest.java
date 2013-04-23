@@ -46,6 +46,7 @@ public class MimeDetectionTest extends TestCase {
         testFile("text/html", "test.html");
         testFile("application/xml", "test-iso-8859-1.xml");
         testFile("application/xml", "test-utf8.xml");
+        testFile("application/xml", "test-utf8-bom.xml");
         testFile("application/xml", "test-utf16le.xml");
         testFile("application/xml", "test-utf16be.xml");
         testFile("application/xml", "test-long-comment.xml");
@@ -66,13 +67,13 @@ public class MimeDetectionTest extends TestCase {
 
     public void testByteOrderMark() throws Exception {
         assertEquals(MediaType.TEXT_PLAIN, mimeTypes.detect(
-                new ByteArrayInputStream("\ufffetest".getBytes("UTF-16LE")),
+                new ByteArrayInputStream("\ufefftest".getBytes("UTF-16LE")),
                 new Metadata()));
         assertEquals(MediaType.TEXT_PLAIN, mimeTypes.detect(
-                new ByteArrayInputStream("\ufffetest".getBytes("UTF-16BE")),
+                new ByteArrayInputStream("\ufefftest".getBytes("UTF-16BE")),
                 new Metadata()));
         assertEquals(MediaType.TEXT_PLAIN, mimeTypes.detect(
-                new ByteArrayInputStream("\ufffetest".getBytes("UTF-8")),
+                new ByteArrayInputStream("\ufefftest".getBytes("UTF-8")),
                 new Metadata()));
     }
 

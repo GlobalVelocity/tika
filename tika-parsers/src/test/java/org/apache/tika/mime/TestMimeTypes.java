@@ -27,9 +27,7 @@ import junit.framework.TestCase;
 
 import org.apache.tika.Tika;
 import org.apache.tika.config.TikaConfig;
-import org.apache.tika.detect.DefaultDetector;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.parser.microsoft.POIFSContainerDetector;
 
 /**
  * 
@@ -286,6 +284,13 @@ public class TestMimeTypes extends TestCase {
        assertTypeByData("application/x-gtar",  "test-documents.tar"); // GNU TAR
        assertTypeByData("application/x-gzip", "test-documents.tgz"); // See GZIP, not tar contents of it
        assertTypeByData("application/x-cpio", "test-documents.cpio");
+    }
+    
+    public void testFitsDetection() throws Exception {
+        // FITS image created using imagemagick convert of testJPEG.jpg
+        assertType("application/fits", "testFITS.fits");
+        assertTypeByData("application/fits", "testFITS.fits");
+        assertTypeByName("application/fits", "testFITS.fits");
     }
 
     public void testJpegDetection() throws Exception {
@@ -572,10 +577,62 @@ public class TestMimeTypes extends TestCase {
         assertType("application/x-font-ttf", "testTrueType.ttf");
     }
     
+    public void test7ZipDetection() throws Exception {
+       assertTypeByName("application/x-7z-compressed","test-documents.7z");
+       assertTypeByData("application/x-7z-compressed","test-documents.7z");
+       assertTypeByNameAndData("application/x-7z-compressed", "test-documents.7z");
+   }
+
     public void testWebArchiveDetection() throws Exception {
         assertTypeByName("application/x-webarchive","x.webarchive");
         assertTypeByData("application/x-bplist","testWEBARCHIVE.webarchive");
         assertTypeByNameAndData("application/x-webarchive", "testWEBARCHIVE.webarchive");
+    }
+
+    /**
+     * KML, and KMZ (zipped KML)
+     */
+    public void testKMLZDetection() throws Exception {
+       assertTypeByName("application/vnd.google-earth.kml+xml","testKML.kml");
+       assertTypeByData("application/vnd.google-earth.kml+xml","testKML.kml");
+       assertTypeByNameAndData("application/vnd.google-earth.kml+xml", "testKML.kml");
+       
+       assertTypeByName("application/vnd.google-earth.kmz","testKMZ.kmz");
+       assertTypeByNameAndData("application/vnd.google-earth.kmz", "testKMZ.kmz");
+       
+       // By data only, mimetype magic only gets us to a .zip
+       // We need to use the Zip Aware detector to get the full type
+       assertTypeByData("application/zip","testKMZ.kmz");
+   }
+
+    public void testEmlx() throws IOException {
+        assertTypeDetection("testEMLX.emlx", "message/x-emlx");
+    }
+
+    /** Test getMimeType(byte[]) */
+    public void testGetMimeType_byteArray() throws IOException {
+        // Plain text detection
+        assertText(new byte[] { (byte) 0xFF, (byte) 0xFE });
+        assertText(new byte[] { (byte) 0xFF, (byte) 0xFE });
+        assertText(new byte[] { (byte) 0xEF, (byte) 0xBB, (byte) 0xBF });
+        assertText(new byte[] { 'a', 'b', 'c' });
+        assertText(new byte[] { '\t', '\r', '\n', 0x0C, 0x1B });
+        assertNotText(new byte[] { '\t', '\r', '\n', 0x0E, 0x1C });
+    }
+
+    private void assertText(byte[] prefix) throws IOException {
+        assertMagic("text/plain", prefix);
+    }
+
+    private void assertNotText(byte[] prefix) throws IOException {
+        assertMagic("application/octet-stream", prefix);
+    }
+
+    private void assertMagic(String expected, byte[] prefix) throws IOException {
+        MediaType type =
+                repo.detect(new ByteArrayInputStream(prefix), new Metadata());
+        assertNotNull(type);
+        assertEquals(expected, type.toString());
     }
 
     private void assertType(String expected, String filename) throws Exception {
@@ -620,18 +677,24 @@ public class TestMimeTypes extends TestCase {
           stream.close();
        }
     }
-    
+
+    private void assertTypeDetection(String filename, String type)
+            throws IOException {
+        assertTypeDetection(filename, type, type, type);
+    }
+
     private void assertTypeDetection(String filename, String byName, String byData, 
             String byNameAndData) throws IOException {
         assertTypeByName(byName, filename);
         assertTypeByData(byData, filename);
         assertTypeByNameAndData(byNameAndData, filename);
     }
-    
+
     private void assertTypeByNameAndData(String expected, String filename)
         throws IOException {
        assertEquals(expected, getTypeByNameAndData(filename).toString());
     }
+
     private MediaType getTypeByNameAndData(String filename) throws IOException {
        InputStream stream = TestMimeTypes.class.getResourceAsStream(
              "/test-documents/" + filename);

@@ -17,73 +17,87 @@
 
 package org.apache.tika.server;
 
-import au.com.bytecode.opencsv.CSVReader;
-import com.sun.jersey.test.framework.JerseyTest;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import org.junit.Test;
-
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.HashMap;
 import java.util.Map;
 
-public class MetadataResourceTest extends JerseyTest {
-  private static final String META_PATH = "/meta";
+import javax.ws.rs.core.Response;
 
-  public MetadataResourceTest() throws Exception {
-    super("org.apache.tika.server");
-  }
+import org.apache.cxf.binding.BindingFactoryManager;
+import org.apache.cxf.endpoint.Server;
+import org.apache.cxf.jaxrs.JAXRSBindingFactory;
+import org.apache.cxf.jaxrs.JAXRSServerFactoryBean;
+import org.apache.cxf.jaxrs.client.WebClient;
+import org.apache.cxf.jaxrs.lifecycle.SingletonResourceProvider;
+import org.junit.Test;
 
-  @Test
-  public void testSimpleWord() throws Exception {
-    Reader reader =
-            resource().path(META_PATH)
-            .type("application/msword")
-                    .put(Reader.class, ClassLoader.getSystemResourceAsStream(TikaResourceTest.TEST_DOC));
+import au.com.bytecode.opencsv.CSVReader;
 
-    CSVReader csvReader = new CSVReader(reader);
+public class MetadataResourceTest extends CXFTestBase {
+	private static final String META_PATH = "/meta";
 
-    Map<String,String> metadata = new HashMap<String, String>();
+	private static final String endPoint = "http://localhost:"
+			+ TikaServerCli.DEFAULT_PORT;
 
-    String[] nextLine;
-    while ((nextLine = csvReader.readNext()) != null) {
-      metadata.put(nextLine[0], nextLine[1]);
-    }
+	private Server server;
 
-    assertNotNull(metadata.get("Author"));
-    assertEquals("Maxim Valyanskiy", metadata.get("Author"));
-  }
-/*
-  @Test
-  public void testXLSX() throws Exception {
-    Reader reader =
-            webResource.path(META_PATH)
-            .type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                    .header("File-Name", TikaResourceTest.TEST_XLSX)
-                    .put(Reader.class, ClassLoader.getSystemResourceAsStream(TikaResourceTest.TEST_XLSX));
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see junit.framework.TestCase#setUp()
+	 */
+	@Override
+	protected void setUp() throws Exception {
+		JAXRSServerFactoryBean sf = new JAXRSServerFactoryBean();
+		sf.setResourceClasses(MetadataResource.class);
+		sf.setResourceProvider(MetadataResource.class,
+				new SingletonResourceProvider(new MetadataResource()));
+		sf.setAddress(endPoint + "/");
+		BindingFactoryManager manager = sf.getBus().getExtension(
+				BindingFactoryManager.class);
+		JAXRSBindingFactory factory = new JAXRSBindingFactory();
+		factory.setBus(sf.getBus());
+		manager.registerBindingFactory(JAXRSBindingFactory.JAXRS_BINDING_ID,
+				factory);
+		server = sf.create();
+	}
 
-    CSVReader csvReader = new CSVReader(reader);
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see junit.framework.TestCase#tearDown()
+	 */
+	@Override
+	protected void tearDown() throws Exception {
+		server.stop();
+		server.destroy();
+	}
 
-    final Map < String, String > metadataActual = new HashMap < String, String > (),
-            metadataExpected = new HashMap < String, String > ();
+	@Test
+	public void testSimpleWord() throws Exception {
+		Response response = WebClient
+				.create(endPoint + META_PATH)
+				.type("application/msword")
+				.accept("text/csv")
+				.put(ClassLoader
+						.getSystemResourceAsStream(TikaResourceTest.TEST_DOC));
 
-    String[] nextLine;
-    while ((nextLine = csvReader.readNext()) != null) {
-      metadataActual.put(nextLine[0], nextLine[1]);
-    }
-    metadataExpected.put("Author", "jet");
-    metadataExpected.put("Application-Name", "Microsoft Excel");
-    metadataExpected.put("description", "Тестовый комментарий");
-    metadataExpected.put("resourceName", TikaResourceTest.TEST_XLSX);
-    metadataExpected.put("protected", "false");
-    metadataExpected.put("Creation-Date", "2010-05-11T12:37:42Z");
-    metadataExpected.put("Last-Modified", "2010-05-11T14:46:20Z");
-    assertEquals( true, metadataActual.size() >= metadataExpected.size() );
-    for ( final Map.Entry < String, String > field : metadataExpected.entrySet() ) {
-      final String key = field.getKey(), valueActual = metadataActual.get(key), valueExpected = field.getValue();
-      assertNotNull( valueActual );
-      assertEquals( valueExpected, valueActual );
-    }
-  }
-*/
+		Reader reader = new InputStreamReader(
+				(InputStream) response.getEntity());
+
+		CSVReader csvReader = new CSVReader(reader);
+
+		Map<String, String> metadata = new HashMap<String, String>();
+
+		String[] nextLine;
+		while ((nextLine = csvReader.readNext()) != null) {
+			metadata.put(nextLine[0], nextLine[1]);
+		}
+
+		assertNotNull(metadata.get("Author"));
+		assertEquals("Maxim Valyanskiy", metadata.get("Author"));
+	}
+
 }

@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
@@ -197,8 +198,7 @@ public class MboxParser extends AbstractParser {
         String headerContent = headerMatcher.group(2);
 
         if (headerTag.equalsIgnoreCase("From")) {
-            metadata.add(Metadata.AUTHOR, headerContent);
-            metadata.add(Metadata.CREATOR, headerContent);
+            metadata.set(TikaCoreProperties.CREATOR, headerContent);
         } else if (headerTag.equalsIgnoreCase("To") ||
         	headerTag.equalsIgnoreCase("Cc") ||
         	headerTag.equalsIgnoreCase("Bcc")) {
@@ -217,26 +217,26 @@ public class MboxParser extends AbstractParser {
             }
             metadata.add(property, headerContent);
         } else if (headerTag.equalsIgnoreCase("Subject")) {
-            metadata.add(Metadata.SUBJECT, headerContent);
-            metadata.add(Metadata.TITLE, headerContent);
+            // TODO Move to title in Tika 2.0
+            metadata.add(TikaCoreProperties.TRANSITION_SUBJECT_TO_DC_TITLE, 
+                    headerContent);
         } else if (headerTag.equalsIgnoreCase("Date")) {
             try {
                 Date date = parseDate(headerContent);
-                metadata.set(Metadata.DATE, date);
-                metadata.set(Metadata.CREATION_DATE, date);
+                metadata.set(TikaCoreProperties.CREATED, date);
             } catch (ParseException e) {
                 // ignoring date because format was not understood
             }
         } else if (headerTag.equalsIgnoreCase("Message-Id")) {
-            metadata.add(Metadata.IDENTIFIER, headerContent);
+            metadata.set(TikaCoreProperties.IDENTIFIER, headerContent);
         } else if (headerTag.equalsIgnoreCase("In-Reply-To")) {
-            metadata.add(Metadata.RELATION, headerContent);
+            metadata.set(TikaCoreProperties.RELATION, headerContent);
         } else if (headerTag.equalsIgnoreCase("Content-Type")) {
             // TODO - key off content-type in headers to
             // set mapping to use for content and convert if necessary.
 
             metadata.add(Metadata.CONTENT_TYPE, headerContent);
-            metadata.add(Metadata.FORMAT, headerContent);
+            metadata.set(TikaCoreProperties.FORMAT, headerContent);
         } else {
             metadata.add(EMAIL_HEADER_METADATA_PREFIX + headerTag, headerContent);
         }

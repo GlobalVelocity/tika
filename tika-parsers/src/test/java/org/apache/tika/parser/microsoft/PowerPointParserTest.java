@@ -21,6 +21,9 @@ import java.util.Locale;
 
 import org.apache.tika.TikaTest;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.Office;
+import org.apache.tika.metadata.OfficeOpenXMLCore;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.BodyContentHandler;
 import org.xml.sax.ContentHandler;
@@ -38,7 +41,8 @@ public class PowerPointParserTest extends TikaTest {
             assertEquals(
                     "application/vnd.ms-powerpoint",
                     metadata.get(Metadata.CONTENT_TYPE));
-            assertEquals("Sample Powerpoint Slide", metadata.get(Metadata.TITLE));
+            assertEquals("Sample Powerpoint Slide", metadata.get(TikaCoreProperties.TITLE));
+            assertEquals("Keith Bennett", metadata.get(TikaCoreProperties.CREATOR));
             assertEquals("Keith Bennett", metadata.get(Metadata.AUTHOR));
             String content = handler.toString();
             assertTrue(content.contains("Sample Powerpoint Slide"));
@@ -100,9 +104,12 @@ public class PowerPointParserTest extends TikaTest {
 
         assertContains("Keyword1 Keyword2", content);
         assertEquals("Keyword1 Keyword2",
-                     metadata.get(Metadata.KEYWORDS));
+                     metadata.get(TikaCoreProperties.KEYWORDS));
 
         assertContains("Subject is here", content);
+        assertEquals("Subject is here",
+                     metadata.get(OfficeOpenXMLCore.SUBJECT));
+        // TODO: Remove subject in Tika 2.0
         assertEquals("Subject is here",
                      metadata.get(Metadata.SUBJECT));
 
@@ -197,13 +204,13 @@ public class PowerPointParserTest extends TikaTest {
        }
        
        assertEquals("application/vnd.ms-powerpoint", metadata.get(Metadata.CONTENT_TYPE));
-       assertEquals("JOUVIN ETIENNE",       metadata.get(Metadata.AUTHOR));
-       assertEquals("EJ04325S",             metadata.get(Metadata.LAST_AUTHOR));
-       assertEquals("2011-08-22T13:32:58Z", metadata.get(Metadata.LAST_SAVED));
-       assertEquals("2011-08-22T13:30:53Z", metadata.get(Metadata.CREATION_DATE));
-       assertEquals("1",                    metadata.get(Metadata.SLIDE_COUNT));
-       assertEquals("3",                    metadata.get(Metadata.WORD_COUNT));
-       assertEquals("Test extraction properties pptx", metadata.get(Metadata.TITLE));
+       assertEquals("JOUVIN ETIENNE",       metadata.get(TikaCoreProperties.CREATOR));
+       assertEquals("EJ04325S",             metadata.get(TikaCoreProperties.MODIFIER));
+       assertEquals("2011-08-22T13:32:58Z", metadata.get(TikaCoreProperties.MODIFIED));
+       assertEquals("2011-08-22T13:30:53Z", metadata.get(TikaCoreProperties.CREATED));
+       assertEquals("1",                    metadata.get(Office.SLIDE_COUNT));
+       assertEquals("3",                    metadata.get(Office.WORD_COUNT));
+       assertEquals("Test extraction properties pptx", metadata.get(TikaCoreProperties.TITLE));
        assertEquals("true",                 metadata.get("custom:myCustomBoolean"));
        assertEquals("3",                    metadata.get("custom:myCustomNumber"));
        assertEquals("MyStringValue",        metadata.get("custom:MyCustomString"));

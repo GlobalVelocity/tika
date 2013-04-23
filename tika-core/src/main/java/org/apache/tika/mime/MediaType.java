@@ -17,10 +17,13 @@
 package org.apache.tika.mime;
 
 import java.io.Serializable;
+import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
@@ -70,6 +73,8 @@ public final class MediaType implements Comparable<MediaType>, Serializable {
 
     public static final MediaType TEXT_PLAIN = parse("text/plain");
 
+    public static final MediaType TEXT_HTML = parse("text/html");
+
     public static final MediaType APPLICATION_XML = parse("application/xml");
 
     public static final MediaType APPLICATION_ZIP = parse("application/zip");
@@ -92,6 +97,43 @@ public final class MediaType implements Comparable<MediaType>, Serializable {
 
     public static MediaType video(String type) {
         return MediaType.parse("video/" + type);
+    }
+
+    /**
+     * Convenience method that returns an unmodifiable set that contains
+     * all the given media types.
+     *
+     * @since Apache Tika 1.2
+     * @param types media types
+     * @return unmodifiable set of the given types
+     */
+    public static Set<MediaType> set(MediaType... types) {
+        Set<MediaType> set = new HashSet<MediaType>();
+        for (MediaType type : types) {
+            if (type != null) {
+                set.add(type);
+            }
+        }
+        return Collections.unmodifiableSet(set);
+    }
+
+    /**
+     * Convenience method that parses the given media type strings and
+     * returns an unmodifiable set that contains all the parsed types.
+     *
+     * @since Apache Tika 1.2
+     * @param types media type strings
+     * @return unmodifiable set of the parsed types
+     */
+    public static Set<MediaType> set(String... types) {
+        Set<MediaType> set = new HashSet<MediaType>();
+        for (String type : types) {
+            MediaType mt = parse(type);
+            if (mt != null) {
+                set.add(mt);
+            }
+        }
+        return Collections.unmodifiableSet(set);
     }
 
     /**
@@ -190,15 +232,21 @@ public final class MediaType implements Comparable<MediaType>, Serializable {
         }
         return parameters;
     }
-    
-    private static String unquote(String s) {
-        if( s.startsWith("\"") && s.endsWith("\"")) {
-            return s.substring(1, s.length() - 1);
-        }
-        if( s.startsWith("'") && s.endsWith("'")) {
-           return s.substring(1, s.length() - 1);
-       }
 
+    /**
+     * Fuzzy unquoting mechanism that works also with somewhat malformed
+     * quotes.
+     *
+     * @param s string to unquote
+     * @return unquoted string
+     */
+    private static String unquote(String s) {
+        while (s.startsWith("\"") || s.startsWith("'")) {
+            s = s.substring(1);
+        }
+        while (s.endsWith("\"") || s.endsWith("'")) {
+            s = s.substring(0, s.length() - 1);
+        }
         return s;
     }
 
@@ -300,6 +348,28 @@ public final class MediaType implements Comparable<MediaType>, Serializable {
                 union(type.parameters, parameters));
     }
 
+    /**
+     * Creates a media type by adding a parameter to a base type.
+     *
+     * @param type base type
+     * @param name parameter name
+     * @param value parameter value
+     * @since Apache Tika 1.2
+     */
+    public MediaType(MediaType type, String name, String value) {
+        this(type, Collections.singletonMap(name, value));
+    }
+
+    /**
+     * Creates a media type by adding the "charset" parameter to a base type.
+     *
+     * @param type base type
+     * @param charset charset value
+     * @since Apache Tika 1.2
+     */
+    public MediaType(MediaType type, Charset charset) {
+        this(type, "charset", charset.name());
+    }
     /**
      * Returns the base form of the MediaType, excluding
      *  any parameters, such as "text/plain" for

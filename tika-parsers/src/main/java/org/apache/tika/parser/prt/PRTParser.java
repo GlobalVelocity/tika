@@ -26,6 +26,7 @@ import org.apache.poi.util.IOUtils;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.EndianUtils;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
@@ -84,8 +85,7 @@ public class PRTParser extends AbstractParser {
           String formattedDate = dateStr.substring(0, 4) + "-" + dateStr.substring(4,6) +
              "-" + dateStr.substring(6,8) + "T" + dateStr.substring(8,10) + ":" +
              dateStr.substring(10, 12) + ":00";
-          metadata.set(Metadata.CREATION_DATE, formattedDate);
-          metadata.set(Metadata.DATE, formattedDate);
+          metadata.set(TikaCoreProperties.CREATED, formattedDate);
        }
        metadata.set(Metadata.CONTENT_TYPE, PRT_MIME_TYPE);
        
@@ -94,7 +94,7 @@ public class PRTParser extends AbstractParser {
        IOUtils.readFully(stream, desc);
        String description = extractText(desc, true);
        if(description.length() > 0) {
-          metadata.set(Metadata.DESCRIPTION, description);
+          metadata.set(TikaCoreProperties.DESCRIPTION, description);
        }
        
        // Now look for text

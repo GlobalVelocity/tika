@@ -36,13 +36,18 @@ import org.apache.poi.xslf.extractor.XSLFPowerPointExtractor;
 import org.apache.poi.xssf.extractor.XSSFEventBasedExcelExtractor;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.metadata.MSOffice;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.Office;
+import org.apache.tika.metadata.OfficeOpenXMLCore;
+import org.apache.tika.metadata.OfficeOpenXMLExtended;
 import org.apache.tika.metadata.PagedText;
 import org.apache.tika.metadata.Property;
 import org.apache.tika.parser.microsoft.ooxml.mach1Extraction.Mach1ExcelHandler;
 import org.apache.tika.parser.microsoft.ooxml.mach1Extraction.Mach1PowerPointHandler;
 import org.apache.tika.parser.microsoft.ooxml.mach1Extraction.Mach1WordHandler;
 import org.apache.xmlbeans.XmlException;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.openxmlformats.schemas.officeDocument.x2006.customProperties.CTProperty;
 import org.openxmlformats.schemas.officeDocument.x2006.extendedProperties.CTProperties;
 import org.xml.sax.*;
@@ -114,36 +119,44 @@ public class MetadataExtractor {
         PackagePropertiesPart propsHolder = properties
                 .getUnderlyingProperties();
 
-        addProperty(metadata, Metadata.CATEGORY, propsHolder.getCategoryProperty());
-        addProperty(metadata, Metadata.CONTENT_STATUS, propsHolder
+        addProperty(metadata, OfficeOpenXMLCore.CATEGORY, propsHolder.getCategoryProperty());
+        addProperty(metadata, OfficeOpenXMLCore.CONTENT_STATUS, propsHolder
                 .getContentStatusProperty());
-        addProperty(metadata, Metadata.DATE, propsHolder
+        addProperty(metadata, TikaCoreProperties.CREATED, propsHolder
                 .getCreatedProperty());
-        addProperty(metadata, Metadata.CREATION_DATE, propsHolder
-                .getCreatedProperty());
-        addProperty(metadata, Metadata.CREATOR, propsHolder
+        addProperty(metadata, TikaCoreProperties.CREATOR, propsHolder
                 .getCreatorProperty());
-        addProperty(metadata, Metadata.AUTHOR, propsHolder
-                .getCreatorProperty());
-        addProperty(metadata, Metadata.DESCRIPTION, propsHolder
+        addProperty(metadata, TikaCoreProperties.DESCRIPTION, propsHolder
                 .getDescriptionProperty());
-        addProperty(metadata, Metadata.IDENTIFIER, propsHolder
+        addProperty(metadata, TikaCoreProperties.IDENTIFIER, propsHolder
                 .getIdentifierProperty());
-        addProperty(metadata, Metadata.KEYWORDS, propsHolder
+        addProperty(metadata, TikaCoreProperties.KEYWORDS, propsHolder
                 .getKeywordsProperty());
-        addProperty(metadata, Metadata.LANGUAGE, propsHolder
+        addProperty(metadata, TikaCoreProperties.LANGUAGE, propsHolder
                 .getLanguageProperty());
-        addProperty(metadata, Metadata.LAST_AUTHOR, propsHolder
+        addProperty(metadata, TikaCoreProperties.MODIFIER, propsHolder
                 .getLastModifiedByProperty());
-        addProperty(metadata, Metadata.LAST_PRINTED, propsHolder
+        addProperty(metadata, TikaCoreProperties.PRINT_DATE, propsHolder
                 .getLastPrintedProperty());
         addProperty(metadata, Metadata.LAST_MODIFIED, propsHolder
                 .getModifiedProperty());
+        addProperty(metadata, TikaCoreProperties.MODIFIED, propsHolder
+              .getModifiedProperty());
+        addProperty(metadata, OfficeOpenXMLCore.REVISION, propsHolder
+                .getRevisionProperty());
+        // TODO: Move to OO subject in Tika 2.0
+        addProperty(metadata, TikaCoreProperties.TRANSITION_SUBJECT_TO_OO_SUBJECT, 
+                propsHolder.getSubjectProperty());
+        addProperty(metadata, TikaCoreProperties.TITLE, propsHolder.getTitleProperty());
+        addProperty(metadata, OfficeOpenXMLCore.VERSION, propsHolder.getVersionProperty());
+        
+        // Legacy Tika-1.0 style stats
+        // TODO Remove these in Tika 2.0
+        addProperty(metadata, Metadata.CATEGORY, propsHolder.getCategoryProperty());
+        addProperty(metadata, Metadata.CONTENT_STATUS, propsHolder
+                .getContentStatusProperty());
         addProperty(metadata, Metadata.REVISION_NUMBER, propsHolder
                 .getRevisionProperty());
-        addProperty(metadata, Metadata.SUBJECT, propsHolder
-                .getSubjectProperty());
-        addProperty(metadata, Metadata.TITLE, propsHolder.getTitleProperty());
         addProperty(metadata, Metadata.VERSION, propsHolder.getVersionProperty());
     }
 
@@ -151,31 +164,47 @@ public class MetadataExtractor {
             Metadata metadata) {
         CTProperties propsHolder = properties.getUnderlyingProperties();
 
-        addProperty(metadata, Metadata.APPLICATION_NAME, propsHolder
-                .getApplication());
-        addProperty(metadata, Metadata.APPLICATION_VERSION, propsHolder
-                .getAppVersion());
-        addProperty(metadata, Metadata.CHARACTER_COUNT, propsHolder
-                .getCharacters());
-        addProperty(metadata, Metadata.CHARACTER_COUNT_WITH_SPACES, propsHolder
-                .getCharactersWithSpaces());
-        addProperty(metadata, Metadata.PUBLISHER, propsHolder.getCompany());
-        addProperty(metadata, Metadata.LINE_COUNT, propsHolder.getLines());
+        addProperty(metadata, OfficeOpenXMLExtended.APPLICATION, propsHolder.getApplication());
+        addProperty(metadata, OfficeOpenXMLExtended.APP_VERSION, propsHolder.getAppVersion());
+        addProperty(metadata, TikaCoreProperties.PUBLISHER, propsHolder.getCompany());
+        addProperty(metadata, OfficeOpenXMLExtended.COMPANY, propsHolder.getCompany());
+        addProperty(metadata, OfficeOpenXMLExtended.MANAGER, propsHolder.getManager());
+        addProperty(metadata, OfficeOpenXMLExtended.NOTES, propsHolder.getNotes());
+        addProperty(metadata, OfficeOpenXMLExtended.PRESENTATION_FORMAT, propsHolder.getPresentationFormat());
+        addProperty(metadata, OfficeOpenXMLExtended.TEMPLATE, propsHolder.getTemplate());
+        addProperty(metadata, OfficeOpenXMLExtended.TOTAL_TIME, propsHolder.getTotalTime());
+
+        if (propsHolder.getPages() > 0) {
+           metadata.set(PagedText.N_PAGES, propsHolder.getPages());
+        } else if (propsHolder.getSlides() > 0) {
+           metadata.set(PagedText.N_PAGES, propsHolder.getSlides());
+        }
+
+        // Process the document statistics
+        addProperty(metadata, Office.PAGE_COUNT, propsHolder.getPages());
+        addProperty(metadata, Office.SLIDE_COUNT, propsHolder.getSlides());
+        addProperty(metadata, Office.PARAGRAPH_COUNT, propsHolder.getParagraphs());
+        addProperty(metadata, Office.LINE_COUNT, propsHolder.getLines());
+        addProperty(metadata, Office.WORD_COUNT, propsHolder.getWords());
+        addProperty(metadata, Office.CHARACTER_COUNT, propsHolder.getCharacters());
+        addProperty(metadata, Office.CHARACTER_COUNT_WITH_SPACES, propsHolder.getCharactersWithSpaces());
+        
+        // Legacy Tika-1.0 style stats
+        // TODO Remove these in Tika 2.0
+        addProperty(metadata, Metadata.APPLICATION_NAME, propsHolder.getApplication());
+        addProperty(metadata, Metadata.APPLICATION_VERSION, propsHolder.getAppVersion());
         addProperty(metadata, Metadata.MANAGER, propsHolder.getManager());
         addProperty(metadata, Metadata.NOTES, propsHolder.getNotes());
-        addProperty(metadata, Metadata.PAGE_COUNT, propsHolder.getPages());
-        if (propsHolder.getPages() > 0) {
-            metadata.set(PagedText.N_PAGES, propsHolder.getPages());
-        } else if (propsHolder.getSlides() > 0) {
-            metadata.set(PagedText.N_PAGES, propsHolder.getSlides());
-        }
-        addProperty(metadata, Metadata.PARAGRAPH_COUNT, propsHolder.getParagraphs());
-        addProperty(metadata, Metadata.PRESENTATION_FORMAT, propsHolder
-                .getPresentationFormat());
-        addProperty(metadata, Metadata.SLIDE_COUNT, propsHolder.getSlides());
+        addProperty(metadata, Metadata.PRESENTATION_FORMAT, propsHolder.getPresentationFormat());
         addProperty(metadata, Metadata.TEMPLATE, propsHolder.getTemplate());
         addProperty(metadata, Metadata.TOTAL_TIME, propsHolder.getTotalTime());
-        addProperty(metadata, Metadata.WORD_COUNT, propsHolder.getWords());
+        addProperty(metadata, MSOffice.PAGE_COUNT, propsHolder.getPages());
+        addProperty(metadata, MSOffice.SLIDE_COUNT, propsHolder.getSlides());
+        addProperty(metadata, MSOffice.PARAGRAPH_COUNT, propsHolder.getParagraphs());
+        addProperty(metadata, MSOffice.LINE_COUNT, propsHolder.getLines());
+        addProperty(metadata, MSOffice.WORD_COUNT, propsHolder.getWords());
+        addProperty(metadata, MSOffice.CHARACTER_COUNT, propsHolder.getCharacters());
+        addProperty(metadata, MSOffice.CHARACTER_COUNT_WITH_SPACES, propsHolder.getCharactersWithSpaces());
     }
 
     private void extractMetadata(CustomProperties properties,
@@ -286,15 +315,30 @@ public class MetadataExtractor {
        }
     }
     
-    private void addProperty(Metadata metadata, Property property, Nullable<Date> value) {
-        if (value.getValue() != null) {
-            metadata.set(property, value.getValue());
+    private <T> void addProperty(Metadata metadata, Property property, Nullable<T> nullableValue) {
+        T value = nullableValue.getValue();
+        if (value != null) {
+            if (value instanceof Date) {
+                metadata.set(property, (Date) value);
+            } else if (value instanceof String) {
+                metadata.set(property, (String) value);
+            } else if (value instanceof Integer) {
+                metadata.set(property, (Integer) value);
+            } else if (value instanceof Double) {
+                metadata.set(property, (Double) value);
+            }
         }
     }
 
     private void addProperty(Metadata metadata, String name, Nullable<?> value) {
         if (value.getValue() != null) {
             addProperty(metadata, name, value.getValue().toString());
+        }
+    }
+    
+    private void addProperty(Metadata metadata, Property property, String value) {
+        if (value != null) {
+            metadata.set(property, value);
         }
     }
 

@@ -17,79 +17,82 @@
 package org.apache.tika.metadata;
 
 /**
- * A collection of Microsoft Office documents property names.
+ * A collection of Microsoft Office and Open Document property names.
+ * 
+ * This is being replaced with cleaner, better defined properties in
+ *  {@link Office}.
  */
 public interface MSOffice {
 
-    String KEYWORDS = "Keywords";
+    @Deprecated String KEYWORDS = "Keywords";
 
-    String COMMENTS = "Comments";
+    @Deprecated String COMMENTS = "Comments";
 
-    String LAST_AUTHOR = "Last-Author";
+    @Deprecated String LAST_AUTHOR = "Last-Author";
 
-    String APPLICATION_NAME = "Application-Name";
+    @Deprecated String AUTHOR = "Author";
 
-    String REVISION_NUMBER = "Revision-Number";
+    @Deprecated String APPLICATION_NAME = "Application-Name";
 
-    String TEMPLATE = "Template";
+    @Deprecated String REVISION_NUMBER = "Revision-Number";
 
-    String AUTHOR = "Author";
+    @Deprecated String TEMPLATE = "Template";
 
-    String TOTAL_TIME = "Total-Time";
+    @Deprecated String TOTAL_TIME = "Total-Time";
 
-    String PRESENTATION_FORMAT = "Presentation-Format";
+    @Deprecated String PRESENTATION_FORMAT = "Presentation-Format";
 
-    String NOTES = "Notes";
+    @Deprecated String NOTES = "Notes";
 
-    String MANAGER = "Manager";
+    @Deprecated String MANAGER = "Manager";
 
-    String APPLICATION_VERSION = "Application-Version";
+    @Deprecated String APPLICATION_VERSION = "Application-Version";
 
-    String VERSION = "Version";
+    @Deprecated String VERSION = "Version";
 
-    String CONTENT_STATUS = "Content-Status";
+    @Deprecated String CONTENT_STATUS = "Content-Status";
 
-    String CATEGORY = "Category";
+    @Deprecated String CATEGORY = "Category";
 
-    String COMPANY = "Company";
+    @Deprecated String COMPANY = "Company";
 
-    String SECURITY = "Security";
+    @Deprecated String SECURITY = "Security";
 
     
     /** The number of Slides are there in the (presentation) document */
-    Property SLIDE_COUNT = 
+    @Deprecated Property SLIDE_COUNT = 
        Property.internalInteger("Slide-Count");
     
     /** The number of Pages are there in the (paged) document */
-    Property PAGE_COUNT = 
+    @Deprecated Property PAGE_COUNT = 
        Property.internalInteger("Page-Count");
 
     /** The number of individual Paragraphs in the document */ 
-    Property PARAGRAPH_COUNT = 
+    @Deprecated Property PARAGRAPH_COUNT = 
        Property.internalInteger("Paragraph-Count");
     
     /** The number of lines in the document */
-    Property LINE_COUNT = 
+    @Deprecated Property LINE_COUNT = 
        Property.internalInteger("Line-Count");
 
     /** The number of Words in the document */
-    Property WORD_COUNT = 
+    @Deprecated Property WORD_COUNT = 
        Property.internalInteger("Word-Count");
 
     /** The number of Characters in the document */
-    Property CHARACTER_COUNT = 
+    @Deprecated Property CHARACTER_COUNT = 
        Property.internalInteger("Character Count");
     
     /** The number of Characters in the document, including spaces */
-    Property CHARACTER_COUNT_WITH_SPACES = 
+    @Deprecated Property CHARACTER_COUNT_WITH_SPACES = 
        Property.internalInteger("Character-Count-With-Spaces");
 
     /** The number of Tables in the document */
-    Property TABLE_COUNT = 
+    @Deprecated Property TABLE_COUNT = 
        Property.internalInteger("Table-Count");
     
     /** The number of Images in the document */
-    Property IMAGE_COUNT = 
+    @Deprecated Property IMAGE_COUNT = 
        Property.internalInteger("Image-Count");
     
     /** 
@@ -97,7 +100,7 @@ public interface MSOffice {
      * This is typically non-Image resources embedded in the
      *  document, such as other documents or non-Image media. 
      */
-    Property OBJECT_COUNT = 
+    @Deprecated Property OBJECT_COUNT = 
        Property.internalInteger("Object-Count");
 
     
@@ -105,15 +108,15 @@ public interface MSOffice {
     String EDIT_TIME = "Edit-Time"; 
 
     /** When was the document created? */
-    Property CREATION_DATE = 
+    @Deprecated Property CREATION_DATE = 
         Property.internalDate("Creation-Date");
 
     /** When was the document last saved? */
-    Property LAST_SAVED = 
+    @Deprecated Property LAST_SAVED = 
        Property.internalDate("Last-Save-Date");
     
     /** When was the document last printed? */
-    Property LAST_PRINTED = 
+    @Deprecated Property LAST_PRINTED = 
        Property.internalDate("Last-Printed");
     
     /** 

@@ -17,6 +17,8 @@
 package org.apache.tika.parser.iwork;
 
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.Property;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
@@ -36,7 +38,7 @@ class NumbersContentHandler extends DefaultHandler {
     private boolean parseText = false;
 
     private boolean inMetadata = false;
-    private String metadataKey;
+    private Property metadataKey;
     private String metadataPropertyQName;
 
     private boolean inTable = false;
@@ -95,11 +97,14 @@ class NumbersContentHandler extends DefaultHandler {
         }
 
         if ("sf:tabular-model".equals(qName)) {
+            String tableName = attributes.getValue("sf:name");
+            xhtml.startElement("div");
+            xhtml.characters(tableName);
+            xhtml.endElement("div");
             inTable = true;
             xhtml.startElement("table");
             xhtml.startElement("tr");
             currentColumn = 0;
-//            String tableName = attributes.getValue("sf:name");
         }
 
         if ("sf:menu-choices".equals(qName)) {
@@ -202,11 +207,16 @@ class NumbersContentHandler extends DefaultHandler {
         }
     }
 
-    private String resolveMetadataKey(String localName) {
+    private Property resolveMetadataKey(String localName) {
         if ("authors".equals(localName)) {
-            return Metadata.AUTHOR;
+            return TikaCoreProperties.CREATOR;
         }
-
-        return localName;
+        if ("title".equals(localName)) {
+            return TikaCoreProperties.TITLE;
+        }
+        if ("comment".equals(localName)) {
+            return TikaCoreProperties.COMMENTS;
+        }
+        return Property.internalText(localName);
     }
 }

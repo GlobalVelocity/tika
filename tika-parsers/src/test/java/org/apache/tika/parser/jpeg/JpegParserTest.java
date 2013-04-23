@@ -24,6 +24,7 @@ import junit.framework.TestCase;
 
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TIFF;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.xml.sax.helpers.DefaultHandler;
@@ -65,14 +66,22 @@ public class JpegParserTest extends TestCase {
         // Common tags
         //assertEquals("2009-10-02T23:02:49", metadata.get(Metadata.LAST_MODIFIED));
         assertEquals("Date/Time Original for when the photo was taken, unspecified time zone",
-                "2009-08-11T09:09:45", metadata.get(Metadata.DATE));
-        List<String> keywords = Arrays.asList(metadata.getValues(Metadata.SUBJECT));
+                "2009-08-11T09:09:45", metadata.get(TikaCoreProperties.CREATED));
+        List<String> keywords = Arrays.asList(metadata.getValues(TikaCoreProperties.KEYWORDS));
         assertTrue("'canon-55-250' expected in " + keywords, keywords.contains("canon-55-250"));
         assertTrue("'moscow-birds' expected in " + keywords, keywords.contains("moscow-birds")); 
         assertTrue("'serbor' expected in " + keywords, keywords.contains("serbor"));
         assertFalse(keywords.contains("canon-55-250 moscow-birds serbor"));
+        List<String> subject = Arrays.asList(metadata.getValues(Metadata.SUBJECT));
+        assertTrue("'canon-55-250' expected in " + subject, subject.contains("canon-55-250"));
+        assertTrue("'moscow-birds' expected in " + subject, subject.contains("moscow-birds")); 
+        assertTrue("'serbor' expected in " + subject, subject.contains("serbor"));
+        assertFalse(subject.contains("canon-55-250 moscow-birds serbor"));
     }
 
+    /**
+     * Test for a file with Geographic information (lat, long etc) in it
+     */
     public void testJPEGGeo() throws Exception {
         Metadata metadata = new Metadata();
         metadata.set(Metadata.CONTENT_TYPE, "image/jpeg");
@@ -105,12 +114,30 @@ public class JpegParserTest extends TestCase {
         
         // Common tags
         assertEquals("Date/Time Original for when the photo was taken, unspecified time zone",
-                "2009-08-11T09:09:45", metadata.get(Metadata.DATE));
+                "2009-08-11T09:09:45", metadata.get(TikaCoreProperties.CREATED));
         assertEquals("This image has different Date/Time than Date/Time Original, so it is probably modification date",
                 "2009-10-02T23:02:49", metadata.get(Metadata.LAST_MODIFIED));
         assertEquals("Date/Time Original should be stored in EXIF field too",
                 "2009-08-11T09:09:45", metadata.get(TIFF.ORIGINAL_DATE));
+        assertEquals("canon-55-250", metadata.getValues(TikaCoreProperties.KEYWORDS)[0]);
         assertEquals("canon-55-250", metadata.getValues(Metadata.KEYWORDS)[0]);
+    }
+
+    /**
+     * Test for an image with the geographic information stored in a slightly
+     *  different way, see TIKA-915 for details
+     * Disabled for now, pending a fix to the underlying library
+     */
+    public void DISABLEDtestJPEGGeo2() throws Exception {
+       Metadata metadata = new Metadata();
+       metadata.set(Metadata.CONTENT_TYPE, "image/jpeg");
+       InputStream stream =
+          getClass().getResourceAsStream("/test-documents/testJPEG_GEO_2.jpg");
+       parser.parse(stream, new DefaultHandler(), metadata, new ParseContext());
+
+       // Geo tags should be there with 5dp, and not rounded
+       assertEquals("51.57576", metadata.get(Metadata.LATITUDE));
+       assertEquals("-1.56788", metadata.get(Metadata.LONGITUDE));
     }
     
     public void testJPEGTitleAndDescription() throws Exception {
@@ -121,17 +148,16 @@ public class JpegParserTest extends TestCase {
         parser.parse(stream, new DefaultHandler(), metadata, new ParseContext());
           
         // embedded comments with non-ascii characters
-        assertEquals("Tosteberga \u00C4ngar", metadata.get(Metadata.TITLE));
-        assertEquals("Bird site in north eastern Sk\u00E5ne, Sweden.\n(new line)", metadata.get(Metadata.DESCRIPTION));
-        assertEquals("Some Tourist", metadata.get(Metadata.AUTHOR));
-        assertEquals("Some Tourist", metadata.get(Metadata.CREATOR)); // Dublin Core
+        assertEquals("Tosteberga \u00C4ngar", metadata.get(TikaCoreProperties.TITLE));
+        assertEquals("Bird site in north eastern Sk\u00E5ne, Sweden.\n(new line)", metadata.get(TikaCoreProperties.DESCRIPTION));
+        assertEquals("Some Tourist", metadata.get(TikaCoreProperties.CREATOR)); // Dublin Core
         // xmp handles spaces in keywords, returns "bird watching, nature reserve, coast, grazelands"
         // but we have to replace them with underscore
         
         List<String> keywords = Arrays.asList(metadata.getValues(Metadata.KEYWORDS));
         assertTrue(keywords.contains("coast"));
         assertTrue(keywords.contains("bird watching"));
-        assertEquals(keywords, Arrays.asList(metadata.getValues(Metadata.SUBJECT)));
+        assertEquals(keywords, Arrays.asList(metadata.getValues(TikaCoreProperties.KEYWORDS)));
         
         // Core EXIF/TIFF tags
         assertEquals("103", metadata.get(Metadata.IMAGE_WIDTH));
@@ -160,9 +186,11 @@ public class JpegParserTest extends TestCase {
         parser.parse(stream, new DefaultHandler(), metadata, new ParseContext());
           
         // embedded comments with non-ascii characters
-        assertEquals("Tosteberga \u00C4ngar", metadata.get(Metadata.TITLE));
-        assertEquals("Bird site in north eastern Sk\u00E5ne, Sweden.\n(new line)", metadata.get(Metadata.DESCRIPTION));
-        assertEquals("Some Tourist", metadata.get(Metadata.CREATOR));
+        assertEquals("Tosteberga \u00C4ngar", metadata.get(TikaCoreProperties.TITLE));
+        assertEquals("Bird site in north eastern Sk\u00E5ne, Sweden.\n(new line)", metadata.get(TikaCoreProperties.DESCRIPTION));
+        assertEquals("Some Tourist", metadata.get(TikaCoreProperties.CREATOR));
+        List<String> keywords = Arrays.asList(metadata.getValues(TikaCoreProperties.KEYWORDS));
+        assertTrue("got " + keywords, keywords.contains("bird watching")); 
         List<String> subject = Arrays.asList(metadata.getValues(Metadata.SUBJECT));
         assertTrue("got " + subject, subject.contains("bird watching")); 
     }
@@ -176,10 +204,10 @@ public class JpegParserTest extends TestCase {
           
         // XnViewMp's default comment dialog has only comment, not headline.
         // Comment is embedded only if "Write comments in XMP" is enabled in settings
-        assertEquals("Bird site in north eastern Sk\u00E5ne, Sweden.\n(new line)", metadata.get(Metadata.DESCRIPTION));
+        assertEquals("Bird site in north eastern Sk\u00E5ne, Sweden.\n(new line)", metadata.get(TikaCoreProperties.DESCRIPTION));
         // xmp handles spaces in keywords, returns "bird watching, nature reserve, coast, grazelands"
         // but we have to replace them with underscore
-        String[] subject = metadata.getValues(Metadata.SUBJECT);
+        String[] subject = metadata.getValues(TikaCoreProperties.KEYWORDS);
         List<String> keywords = Arrays.asList(subject);
         assertTrue("'coast'" + " not in " + keywords, keywords.contains("coast"));
         assertTrue("'nature reserve'" + " not in " + keywords, keywords.contains("nature reserve"));     
@@ -192,8 +220,8 @@ public class JpegParserTest extends TestCase {
            getClass().getResourceAsStream("/test-documents/testJPEG_oddTagComponent.jpg");
        parser.parse(stream, new DefaultHandler(), metadata, new ParseContext());
        
-       assertEquals(null, metadata.get(Metadata.TITLE));
-       assertEquals(null, metadata.get(Metadata.DESCRIPTION));
+       assertEquals(null, metadata.get(TikaCoreProperties.TITLE));
+       assertEquals(null, metadata.get(TikaCoreProperties.DESCRIPTION));
        assertEquals("251", metadata.get(Metadata.IMAGE_WIDTH));
        assertEquals("384", metadata.get(Metadata.IMAGE_LENGTH));
     }

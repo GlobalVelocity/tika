@@ -14,21 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.tika.parser.internal;
+package org.apache.tika.metadata;
 
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Service;
-import org.apache.tika.detect.DefaultDetector;
-import org.apache.tika.detect.Detector;
+public interface XMPIdq {
 
-@Component @Service(Detector.class)
-public class OSGiDetector extends DefaultDetector {
+    String NAMESPACE_URI = "http://ns.adobe.com/xmp/identifier/qual/1.0/";
 
-    /** Serial version UID */
-    private static final long serialVersionUID = -4397900223116731483L;
+    String PREFIX = "xmpidq";
 
-    public OSGiDetector() {
-        super(OSGiDetector.class.getClassLoader());
-    }
+    /** The xmpidq prefix followed by the colon delimiter */
+    String PREFIX_ = PREFIX + ":";
+
+    /**
+     * A qualifier providing the name of the formal identification
+     * scheme used for an item in the xmp:Identifier array.
+     */
+    Property SCHEME = Property.externalText(PREFIX_ + "Scheme");
 
 }

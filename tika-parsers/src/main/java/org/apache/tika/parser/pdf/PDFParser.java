@@ -22,24 +22,34 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.pdfbox.cos.*;
 import org.apache.pdfbox.io.RandomAccess;
 import org.apache.pdfbox.io.RandomAccessFile;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
 import org.apache.pdfbox.pdmodel.PDDocumentInformation;
+import org.apache.pdfbox.pdmodel.PDDocumentNameDictionary;
+import org.apache.pdfbox.pdmodel.PDEmbeddedFilesNameTreeNode;
+import org.apache.pdfbox.pdmodel.common.filespecification.PDComplexFileSpecification;
+import org.apache.pdfbox.pdmodel.common.filespecification.PDEmbeddedFile;
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.extractor.EmbeddedDocumentExtractor;
+import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
 import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.PagedText;
 import org.apache.tika.metadata.Property;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.PasswordProvider;
+import org.apache.tika.sax.EmbeddedContentHandler;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
@@ -49,7 +59,10 @@ import org.xml.sax.SAXException;
  * This parser can process also encrypted PDF documents if the required
  * password is given as a part of the input metadata associated with a
  * document. If no password is given, then this parser will try decrypting
- * the document using the empty password that's often used with PDFs.
+ * the document using the empty password that's often used with PDFs. If
+ * the PDF contains any embedded documents (for example as part of a PDF
+ * package) then this parser will use the {@link EmbeddedDocumentExtractor}
+ * to handle them.
  */
 public class PDFParser extends AbstractParser {
 
@@ -137,11 +150,57 @@ public class PDFParser extends AbstractParser {
             PDF2XHTML.process(pdfDocument, handler, metadata,
                               extractAnnotationText, enableAutoSpace,
                               suppressDuplicateOverlappingText, sortByPosition);
+
+            extractEmbeddedDocuments(context, pdfDocument, handler);
         } finally {
             if (pdfDocument != null) {
                pdfDocument.close();
             }
             tmp.dispose();
+        }
+    }
+
+    private void extractEmbeddedDocuments(ParseContext context, PDDocument document, ContentHandler handler)
+            throws IOException, SAXException, TikaException {
+        PDDocumentCatalog catalog = document.getDocumentCatalog();
+        PDDocumentNameDictionary names = catalog.getNames();
+        if (names != null) {
+
+            PDEmbeddedFilesNameTreeNode embeddedFiles = names.getEmbeddedFiles();
+            if (embeddedFiles != null) {
+
+                EmbeddedDocumentExtractor embeddedExtractor = context.get(EmbeddedDocumentExtractor.class);
+                if (embeddedExtractor == null) {
+                    embeddedExtractor = new ParsingEmbeddedDocumentExtractor(context);
+                }
+
+                Map<String,Object> embeddedFileNames = embeddedFiles.getNames();
+
+                if (embeddedFileNames != null) {
+                    for (Map.Entry<String,Object> ent : embeddedFileNames.entrySet()) {
+                        PDComplexFileSpecification spec = (PDComplexFileSpecification) ent.getValue();
+                        PDEmbeddedFile file = spec.getEmbeddedFile();
+
+                        Metadata metadata = new Metadata();
+                        // TODO: other metadata?
+                        metadata.set(Metadata.RESOURCE_NAME_KEY, ent.getKey());
+                        metadata.set(Metadata.CONTENT_TYPE, file.getSubtype());
+                        metadata.set(Metadata.CONTENT_LENGTH, Long.toString(file.getSize()));
+
+                        if (embeddedExtractor.shouldParseEmbedded(metadata)) {
+                            TikaInputStream stream = TikaInputStream.get(file.createInputStream());
+                            try {
+                                embeddedExtractor.parseEmbedded(
+                                                                stream,
+                                                                new EmbeddedContentHandler(handler),
+                                                                metadata, false);
+                            } finally {
+                                stream.close();
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -162,22 +221,25 @@ public class PDFParser extends AbstractParser {
         //End Mach1 metadata extraction.
 
         metadata.set(PagedText.N_PAGES, document.getNumberOfPages());
-        addMetadata(metadata, Metadata.TITLE, info.getTitle());
-        addMetadata(metadata, Metadata.AUTHOR, info.getAuthor());
-        addMetadata(metadata, Metadata.CREATOR, info.getCreator());
-        addMetadata(metadata, Metadata.KEYWORDS, info.getKeywords());
+        addMetadata(metadata, TikaCoreProperties.TITLE, info.getTitle());
+        addMetadata(metadata, TikaCoreProperties.CREATOR, info.getAuthor());
+        addMetadata(metadata, TikaCoreProperties.CREATOR_TOOL, info.getCreator());
+        addMetadata(metadata, TikaCoreProperties.KEYWORDS, info.getKeywords());
         addMetadata(metadata, "producer", info.getProducer());
-        addMetadata(metadata, Metadata.SUBJECT, info.getSubject());
+        // TODO: Move to description in Tika 2.0
+        addMetadata(metadata, TikaCoreProperties.TRANSITION_SUBJECT_TO_OO_SUBJECT, info.getSubject());
         addMetadata(metadata, "trapped", info.getTrapped());
         try {
+            // TODO Remove these in Tika 2.0
             addMetadata(metadata, "created", info.getCreationDate());
-            addMetadata(metadata, Metadata.CREATION_DATE, info.getCreationDate());
+            addMetadata(metadata, TikaCoreProperties.CREATED, info.getCreationDate());
         } catch (IOException e) {
             // Invalid date format, just ignore
         }
         try {
             Calendar modified = info.getModificationDate(); 
             addMetadata(metadata, Metadata.LAST_MODIFIED, modified);
+            addMetadata(metadata, TikaCoreProperties.MODIFIED, modified);
         } catch (IOException e) {
             // Invalid date format, just ignore
         }
@@ -196,6 +258,12 @@ public class PDFParser extends AbstractParser {
         }
     }
 
+    private void addMetadata(Metadata metadata, Property property, String value) {
+        if (value != null) {
+            metadata.add(property, value);
+        }
+    }
+    
     private void addMetadata(Metadata metadata, String name, String value) {
         if (value != null) {
             metadata.add(name, value);

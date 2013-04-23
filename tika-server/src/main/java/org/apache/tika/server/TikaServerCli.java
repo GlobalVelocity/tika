@@ -17,17 +17,24 @@
 
 package org.apache.tika.server;
 
-import com.sun.jersey.api.core.PackagesResourceConfig;
-import com.sun.jersey.spi.container.servlet.ServletContainer;
-import org.apache.commons.cli.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.GnuParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
-
-import java.io.IOException;
-import java.util.Properties;
+import org.apache.cxf.binding.BindingFactoryManager;
+import org.apache.cxf.endpoint.Server;
+import org.apache.cxf.jaxrs.JAXRSBindingFactory;
+import org.apache.cxf.jaxrs.JAXRSServerFactoryBean;
+import org.apache.cxf.jaxrs.lifecycle.SingletonResourceProvider;
+import org.apache.tika.Tika;
 
 public class TikaServerCli {
   private static final Log logger = LogFactory.getLog(TikaServerCli.class);
@@ -50,6 +57,7 @@ public class TikaServerCli {
     }
 
     logger.info("Starting Tikaserver "+properties.getProperty("tikaserver.version"));
+    logger.info("Starting Tika Server " + new Tika().toString());
 
     try {
       Options options = getOptions();
@@ -68,18 +76,27 @@ public class TikaServerCli {
         System.exit(-1);
       }
 
-      Server server = new Server(port);
-      ServletContextHandler context = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
-      context.setContextPath("/");
-      server.setHandler(context);
+      JAXRSServerFactoryBean sf = new JAXRSServerFactoryBean();
+      sf.setResourceClasses(MetadataResource.class, TikaResource.class, UnpackerResource.class, TikaVersion.class);
 
-      context.addServlet(new ServletHolder(new ServletContainer(new PackagesResourceConfig("org.apache.tika.server"))), "/*");
-
-      server.start();
-
+      List providers = new ArrayList();
+      providers.add(new TarWriter());
+      providers.add(new ZipWriter());
+      providers.add(new TikaExceptionMapper());
+      providers.add(new SingletonResourceProvider(new MetadataResource()));
+      providers.add(new SingletonResourceProvider(new TikaResource()));
+      providers.add(new SingletonResourceProvider(new UnpackerResource()));
+      providers.add(new SingletonResourceProvider(new TikaVersion()));
+      sf.setProviders(providers);
+      sf.setAddress("http://localhost:" + TikaServerCli.DEFAULT_PORT + "/");
+      BindingFactoryManager manager = sf.getBus().getExtension(
+				BindingFactoryManager.class);
+      JAXRSBindingFactory factory = new JAXRSBindingFactory();
+      factory.setBus(sf.getBus());
+      manager.registerBindingFactory(JAXRSBindingFactory.JAXRS_BINDING_ID,
+				factory);
+      Server server = sf.create();
       logger.info("Started");
-
-      server.join();
     } catch (Exception ex) {
       logger.fatal("Can't start", ex);
       System.exit(-1);

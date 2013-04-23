@@ -28,11 +28,13 @@ import javax.imageio.IIOException;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.metadata.IIOMetadata;
+import javax.imageio.stream.ImageInputStream;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.Property;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
@@ -81,23 +83,30 @@ public class ImageParser extends AbstractParser {
                     ImageIO.getImageReadersByMIMEType(type);
                 if (iterator.hasNext()) {
                     ImageReader reader = iterator.next();
-                    reader.setInput(ImageIO.createImageInputStream(
-                            new CloseShieldInputStream(stream)));
-                    
-                    metadata.set(Metadata.IMAGE_WIDTH, Integer.toString(reader.getWidth(0)));
-                    metadata.set(Metadata.IMAGE_LENGTH, Integer.toString(reader.getHeight(0)));
-                    metadata.set("height", Integer.toString(reader.getHeight(0)));
-                    metadata.set("width", Integer.toString(reader.getWidth(0)));
+                    try {
+                        ImageInputStream imageStream = ImageIO.createImageInputStream(
+                                new CloseShieldInputStream(stream));
+                        try {
+                            reader.setInput(imageStream);
+                            
+                            metadata.set(Metadata.IMAGE_WIDTH, Integer.toString(reader.getWidth(0)));
+                            metadata.set(Metadata.IMAGE_LENGTH, Integer.toString(reader.getHeight(0)));
+                            metadata.set("height", Integer.toString(reader.getHeight(0)));
+                            metadata.set("width", Integer.toString(reader.getWidth(0)));
 
-                    loadMetadata(reader.getImageMetadata(0), metadata);
-
-                    reader.dispose();
+                            loadMetadata(reader.getImageMetadata(0), metadata);
+                        } finally {
+                            imageStream.close();
+                        }
+                    } finally {
+                        reader.dispose();
+                    }
                 }
                 
                 // Translate certain Metadata tags from the ImageIO
                 //  specific namespace into the general Tika one
-                setIfPresent(metadata, "CommentExtensions CommentExtension", Metadata.COMMENTS);
-                setIfPresent(metadata, "markerSequence com", Metadata.COMMENTS);
+                setIfPresent(metadata, "CommentExtensions CommentExtension", TikaCoreProperties.COMMENTS);
+                setIfPresent(metadata, "markerSequence com", TikaCoreProperties.COMMENTS);
                 setIfPresent(metadata, "Data BitsPerSample", Metadata.BITS_PER_SAMPLE);
             } catch (IIOException e) {
                 // TIKA-619: There is a known bug in the Sun API when dealing with GIF images

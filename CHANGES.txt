@@ -1,5 +1,59 @@
-Apache Tika Change Log
-======================
+Release 1.2 - 07/10/2012
+---------------------------------
+
+  * Tika's JAX-RS based Network server now is based on Apache CXF,
+    which is available in Maven Central and now allows the server
+    module to be packaged and included in our release
+    (TIKA-593, TIKA-901).
+
+  * Tika: parseToString now lets you specify the max string length
+    per-call, in addition to per-Tika-instance. (TIKA-870)
+
+  * Tika now has the ability to detect FITS (Flexible Image Transport System) 
+    files (TIKA-874).
+
+  * Images: Fixed file handle leak in ImageParser. (TIKA-875)
+
+  * iWork: Comments in Pages files are now extracted (TIKA-907).
+    Headers, footers and footnotes in Pages files are now extracted
+    (TIKA-906).  Don't throw NullPointerException on passsword
+    protected iWork files, even though we can't parse their contents
+    yet (TIKA-903).  Text extracted from Keynote text boxes and bullet
+    points no longer runs together (TIKA-910). Also extract text for
+    Pages documents created in layout mode (TIKA-904).  Table names
+    are now extracted in Numbers documents (TIKA-924).  Content added
+    to master slides is also extracted (TIKA-923).
+
+  * Archive and compression formats: The Commons Compress dependency was
+    upgraded from 1.3 to 1.4.1. With this change Tika can now parse also
+    Unix dump archives and documents compressed using the XZ and Pack200
+    compression formats. (TIKA-932)
+
+  * KML: Tika now has basic support for Keyhole Markup Language documents
+    (KML and KMZ) used by tools like Google Earth. See also
+    http://www.opengeospatial.org/standards/kml/. (TIKA-941)
+
+  * CLI: You can now use the TIKA_PASSWORD environment variable or the
+    --password=X command line option to specify the password that Tika CLI
+    should use for opening encrypted documents (TIKA-943).
+
+  * Character encodings: Tika's character encoding detection mechanism was
+    improved by adding integration to the juniversalchardet library that
+    implements Mozilla's universal charset detection algorithm. The slower
+    ICU4J algorithms are still used as a fallback thanks to their wider
+    coverage of custom character encodings. (TIKA-322, TIKA-471)
+
+  * Charset parameter: Related to the character encoding improvements
+    mentioned above, Tika now returns the detected character encoding as
+    a "charset" parameter of the content type metadata field for text/plain
+    and text/html documents. For example, instead of just "text/plain", the
+    returned content type will be something like "text/plain; charset=UTF-8"
+    for a UTF-8 encoded text document. Character encoding information is still
+    present also in the content encoding metadata field for backwards
+    compatibility, but that field should be considered deprecated. (TIKA-431)
+
+  * Extraction of embedded resources from OLE2 Office Documents, where
+    the resource isn't another office document, has been fixed (TIKA-948)
 
 Release 1.1 - 3/7/2012
 ---------------------------------

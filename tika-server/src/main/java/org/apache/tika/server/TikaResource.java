@@ -19,10 +19,10 @@ package org.apache.tika.server;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.extractor.ExtractorFactory;
 import org.apache.poi.hwpf.OldWordFileFormatException;
 import org.apache.tika.detect.Detector;
+import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
@@ -33,16 +33,12 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.html.HtmlParser;
 import org.apache.tika.sax.BodyContentHandler;
-import org.apache.tika.sax.WriteOutContentHandler;
-import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -76,10 +72,6 @@ public class TikaResource {
       }
 
       public void parse(InputStream inputStream, ContentHandler contentHandler, Metadata metadata, ParseContext parseContext) {
-        throw new WebApplicationException(Response.Status.UNSUPPORTED_MEDIA_TYPE);
-      }
-
-      public void parse(InputStream inputStream, ContentHandler contentHandler, Metadata metadata) {
         throw new WebApplicationException(Response.Status.UNSUPPORTED_MEDIA_TYPE);
       }
     });
@@ -134,24 +126,9 @@ public class TikaResource {
 
     return new StreamingOutput() {
       public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-        BodyContentHandler body = new BodyContentHandler(new WriteOutContentHandler(outputStream) {
-          @Override
-          public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
-            super.startElement(uri, localName, qName, attributes);
+        Writer writer = new OutputStreamWriter(outputStream, "UTF-8");
 
-            if ("img".equals(localName) && attributes.getValue("alt")!=null) {
-              String nfo = "[image: "+attributes.getValue("alt")+ ']';
-
-              characters(nfo.toCharArray(), 0, nfo.length());
-            }
-
-            if ("a".equals(localName) && attributes.getValue("name")!=null) {
-              String nfo = "[bookmark: "+attributes.getValue("name")+ ']';
-
-              characters(nfo.toCharArray(), 0, nfo.length());
-            }
-          }
-        });
+        BodyContentHandler body = new BodyContentHandler(new RichTextContentHandler(writer));
 
         TikaInputStream tis = TikaInputStream.get(is);
 
@@ -161,7 +138,19 @@ public class TikaResource {
           parser.parse(tis, body, metadata);
         } catch (SAXException e) {
           throw new WebApplicationException(e);
+        } catch (EncryptedDocumentException e) {
+          logger.warn(String.format(
+                  "%s: Encrypted document",
+                  info.getPath()
+          ), e);
+
+          throw new WebApplicationException(e, Response.status(422).build());
         } catch (TikaException e) {
+          logger.warn(String.format(
+            "%s: Text extraction failed",
+            info.getPath()
+          ), e);
+
           if (e.getCause()!=null && e.getCause() instanceof WebApplicationException) {
             throw (WebApplicationException) e.getCause();
           }
@@ -170,18 +159,9 @@ public class TikaResource {
             throw new WebApplicationException(Response.status(422).build());
           }
 
-          if (e.getCause()!=null && e.getCause() instanceof EncryptedDocumentException) {
-            throw new WebApplicationException(Response.status(422).build());
-          }
-
           if (e.getCause()!=null && e.getCause() instanceof OldWordFileFormatException) {
             throw new WebApplicationException(Response.status(422).build());
           }
-
-          logger.warn(String.format(
-                  "%s: Text extraction failed",
-                  info.getPath()
-          ), e);
 
           throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         } finally {

@@ -17,6 +17,7 @@
 package org.apache.tika.parser.iwork;
 
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
@@ -66,6 +67,9 @@ class KeynoteContentHandler extends DefaultHandler {
             inSlide = true;
             numberOfSlides++;
             xhtml.startElement("div");
+        } else if ("key:master-slide".equals(qName)) {
+            inSlide = true;
+            xhtml.startElement("div");
         } else if ("key:title-placeholder".equals(qName) && inSlide) {
             inTitle = true;
             xhtml.startElement("h1");
@@ -90,9 +94,9 @@ class KeynoteContentHandler extends DefaultHandler {
         } else if (inMetadata && "key:authors".equals(qName)) {
             inMetaDataAuthors = true;
         } else if (inMetaDataTitle && "key:string".equals(qName)) {
-            metadata.set(Metadata.TITLE, attributes.getValue("sfa:string"));
+            metadata.set(TikaCoreProperties.TITLE, attributes.getValue("sfa:string"));
         } else if (inMetaDataAuthors && "key:string".equals(qName)) {
-            metadata.add(Metadata.AUTHOR, attributes.getValue("sfa:string"));
+            metadata.add(TikaCoreProperties.CREATOR, attributes.getValue("sfa:string"));
         } else if (inSlide && "sf:tabular-model".equals(qName)) {
             tableId = attributes.getValue("sfa:ID");
             xhtml.startElement("table");
@@ -103,6 +107,8 @@ class KeynoteContentHandler extends DefaultHandler {
             parseTableData(attributes.getValue("sfa:s"));
         } else if (tableId != null && "sf:n".equals(qName)) {
             parseTableData(attributes.getValue("sf:v"));
+        } else if ("sf:p".equals(qName)) {
+            xhtml.startElement("p");
         }
     }
 
@@ -112,6 +118,9 @@ class KeynoteContentHandler extends DefaultHandler {
         if ("key:theme".equals(qName)) {
             inTheme = false;
         } else if ("key:slide".equals(qName)) {
+            inSlide = false;
+            xhtml.endElement("div");
+        } else if ("key:master-slide".equals(qName)) {
             inSlide = false;
             xhtml.endElement("div");
         } else if ("key:title-placeholder".equals(qName) && inSlide) {
@@ -137,6 +146,8 @@ class KeynoteContentHandler extends DefaultHandler {
             tableId = null;
             numberOfColumns = null;
             currentColumn = null;
+        } else if ("sf:p".equals(qName)) {
+            xhtml.endElement("p");
         }
     }
 

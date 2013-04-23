@@ -32,9 +32,14 @@ import org.apache.poi.poifs.filesystem.DocumentEntry;
 import org.apache.poi.poifs.filesystem.DocumentInputStream;
 import org.apache.poi.poifs.filesystem.NPOIFSFileSystem;
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.metadata.MSOffice;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.Office;
+import org.apache.tika.metadata.OfficeOpenXMLCore;
+import org.apache.tika.metadata.OfficeOpenXMLExtended;
 import org.apache.tika.metadata.PagedText;
 import org.apache.tika.metadata.Property;
+import org.apache.tika.metadata.TikaCoreProperties;
 
 /**
  * Outlook Message Parser.
@@ -90,37 +95,58 @@ class SummaryExtractor {
     }
 
     private void parse(SummaryInformation summary) {
-        set(Metadata.TITLE, summary.getTitle());
-        set(Metadata.AUTHOR, summary.getAuthor());
-        set(Metadata.KEYWORDS, summary.getKeywords());
-        set(Metadata.SUBJECT, summary.getSubject());
-        set(Metadata.LAST_AUTHOR, summary.getLastAuthor());
-        set(Metadata.COMMENTS, summary.getComments());
-        set(Metadata.TEMPLATE, summary.getTemplate());
-        set(Metadata.APPLICATION_NAME, summary.getApplicationName());
-        set(Metadata.REVISION_NUMBER, summary.getRevNumber());
-        set(Metadata.CREATION_DATE, summary.getCreateDateTime());
-        set(Metadata.CHARACTER_COUNT, summary.getCharCount());
+        set(TikaCoreProperties.TITLE, summary.getTitle());
+        set(TikaCoreProperties.CREATOR, summary.getAuthor());
+        set(TikaCoreProperties.KEYWORDS, summary.getKeywords());
+        // TODO Move to OO subject in Tika 2.0
+        set(TikaCoreProperties.TRANSITION_SUBJECT_TO_OO_SUBJECT, summary.getSubject());
+        set(TikaCoreProperties.MODIFIER, summary.getLastAuthor());
+        set(TikaCoreProperties.COMMENTS, summary.getComments());
+        set(OfficeOpenXMLExtended.TEMPLATE, summary.getTemplate());
+        set(OfficeOpenXMLExtended.APPLICATION, summary.getApplicationName());
+        set(OfficeOpenXMLCore.REVISION, summary.getRevNumber());
+        set(TikaCoreProperties.CREATED, summary.getCreateDateTime());
+        set(TikaCoreProperties.MODIFIED, summary.getLastSaveDateTime());
+        set(TikaCoreProperties.PRINT_DATE, summary.getLastPrinted());
         set(Metadata.EDIT_TIME, summary.getEditTime());
-        set(Metadata.LAST_SAVED, summary.getLastSaveDateTime());
-        set(Metadata.PAGE_COUNT, summary.getPageCount());
+        set(OfficeOpenXMLExtended.DOC_SECURITY, summary.getSecurity());
+        
+        // New style counts
+        set(Office.WORD_COUNT, summary.getWordCount());
+        set(Office.CHARACTER_COUNT, summary.getCharCount());
+        set(Office.PAGE_COUNT, summary.getPageCount());
         if (summary.getPageCount() > 0) {
             metadata.set(PagedText.N_PAGES, summary.getPageCount());
         }
+        
+        // Old style, Tika 1.0 properties
+     // TODO Remove these in Tika 2.0
+        set(Metadata.TEMPLATE, summary.getTemplate());
+        set(Metadata.APPLICATION_NAME, summary.getApplicationName());
+        set(Metadata.REVISION_NUMBER, summary.getRevNumber());
         set(Metadata.SECURITY, summary.getSecurity());
-        set(Metadata.WORD_COUNT, summary.getWordCount());
-        set(Metadata.LAST_PRINTED, summary.getLastPrinted());
+        set(MSOffice.WORD_COUNT, summary.getWordCount());
+        set(MSOffice.CHARACTER_COUNT, summary.getCharCount());
+        set(MSOffice.PAGE_COUNT, summary.getPageCount());
     }
 
     private void parse(DocumentSummaryInformation summary) {
-        set(Metadata.COMPANY, summary.getCompany());
-        set(Metadata.MANAGER, summary.getManager());
-        set(Metadata.LANGUAGE, getLanguage(summary));
-        set(Metadata.CATEGORY, summary.getCategory());
-        set(Metadata.SLIDE_COUNT, summary.getSlideCount());
+        set(OfficeOpenXMLExtended.COMPANY, summary.getCompany());
+        set(OfficeOpenXMLExtended.MANAGER, summary.getManager());
+        set(TikaCoreProperties.LANGUAGE, getLanguage(summary));
+        set(OfficeOpenXMLCore.CATEGORY, summary.getCategory());
+        
+        // New style counts
+        set(Office.SLIDE_COUNT, summary.getSlideCount());
         if (summary.getSlideCount() > 0) {
             metadata.set(PagedText.N_PAGES, summary.getSlideCount());
         }
+        // Old style, Tika 1.0 counts
+     // TODO Remove these in Tika 2.0
+        set(Metadata.COMPANY, summary.getCompany());
+        set(Metadata.MANAGER, summary.getManager());
+        set(MSOffice.SLIDE_COUNT, summary.getSlideCount());
+        set(Metadata.CATEGORY, summary.getCategory());
         
         parse(summary.getCustomProperties());
     }
@@ -173,6 +199,12 @@ class SummaryExtractor {
     private void set(String name, String value) {
         if (value != null) {
             metadata.set(name, value);
+        }
+    }
+    
+    private void set(Property property, String value) {
+        if (value != null) {
+            metadata.set(property, value);
         }
     }
 

@@ -25,7 +25,7 @@
   <parent>
     <groupId>com.globalvelocity.tika</groupId>
     <artifactId>tika-parent</artifactId>
-    <version>1.1-2</version>
+    <version>1.2-2-SNAPSHOT</version>
     <relativePath>../tika-parent/pom.xml</relativePath>
   </parent>
 
@@ -109,16 +109,20 @@
         <extensions>true</extensions>
         <configuration>
           <instructions>
+            <Bundle-Activator>
+              org.apache.tika.parser.internal.Activator
+            </Bundle-Activator>
             <Embed-Dependency>
               tika-parsers;inline=true,
-              commons-compress, commons-codec,
+              commons-compress, xz, commons-codec, commons-io,
               pdfbox,fontbox,jempbox,bcmail-jdk15,bcprov-jdk15,
               poi,poi-scratchpad,poi-ooxml,poi-ooxml-schemas,
               xmlbeans, dom4j,
               tagsoup,
-              asm, 
+              asm,
+              juniversalchardet,
               vorbis-java-core, vorbis-java-tika,
-              isoparser, scannotation, javassist,
+              isoparser, aspectjrt,
               metadata-extractor,
               boilerpipe, rome,
               apache-mime4j-core, apache-mime4j-dom
@@ -135,15 +139,17 @@
               !org.apache.tika.parser.external,
               org.apache.tika.parser.*
             </_exportcontents>
-            <Service-Component>
+            <!--Service-Component>
               OSGI-INF/serviceComponents.xml
-            </Service-Component>
+            </Service-Component-->
           </instructions>
         </configuration>
       </plugin>
       <!-- TIKA-763: Workaround to avoid including LGPL classes -->
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
+        <version>2.4</version>
         <executions>
           <execution>
             <phase>prepare-package</phase>
@@ -166,7 +172,9 @@
         </executions>
       </plugin>
         <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-assembly-plugin</artifactId>
+            <version>2.3</version>
             <executions>
                 <execution>
                     <phase>pre-integration-test</phase>
@@ -182,6 +190,7 @@
             </executions>
         </plugin>
         <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-failsafe-plugin</artifactId>
             <version>2.10</version>
             <executions>

@@ -22,13 +22,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -194,8 +193,24 @@ public class ServiceLoader {
      * @param iface service provider interface
      * @return available service providers
      */
-    @SuppressWarnings("unchecked")
     public <T> List<T> loadServiceProviders(Class<T> iface) {
+        List<T> providers = new ArrayList<T>();
+        providers.addAll(loadDynamicServiceProviders(iface));
+        providers.addAll(loadStaticServiceProviders(iface));
+        return providers;
+    }
+
+    /**
+     * Returns the available dynamic service providers of the given type.
+     * The returned list is newly allocated and may be freely modified
+     * by the caller.
+     *
+     * @since Apache Tika 1.2
+     * @param iface service provider interface
+     * @return dynamic service providers
+     */
+    @SuppressWarnings("unchecked")
+    public <T> List<T> loadDynamicServiceProviders(Class<T> iface) {
         List<T> providers = new ArrayList<T>();
 
         if (dynamic) {
@@ -208,15 +223,32 @@ public class ServiceLoader {
             }
         }
 
+        return providers;
+    }
+
+    /**
+     * Returns the available static service providers of the given type.
+     * The providers are loaded using the service provider mechanism using
+     * the configured class loader (if any). The returned list is newly
+     * allocated and may be freely modified by the caller.
+     *
+     * @since Apache Tika 1.2
+     * @param iface service provider interface
+     * @return static service providers
+     */
+    @SuppressWarnings("unchecked")
+    public <T> List<T> loadStaticServiceProviders(Class<T> iface) {
+        List<T> providers = new ArrayList<T>();
+
         if (loader != null) {
-            Set<String> names = new HashSet<String>();
+            List<String> names = new ArrayList<String>();
 
             String serviceName = iface.getName();
             Enumeration<URL> resources =
                     findServiceResources("META-INF/services/" + serviceName);
             for (URL resource : Collections.list(resources)) {
                 try {
-                    names.addAll(getServiceClassNames(resource));
+                    collectServiceClassNames(resource, names);
                 } catch (IOException e) {
                     handler.handleLoadError(serviceName, e);
                 }
@@ -241,9 +273,8 @@ public class ServiceLoader {
 
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
-    private Set<String> getServiceClassNames(URL resource)
+    private void collectServiceClassNames(URL resource, Collection<String> names)
             throws IOException {
-        Set<String> names = new HashSet<String>();
         InputStream stream = resource.openStream();
         try {
             BufferedReader reader =
@@ -260,7 +291,6 @@ public class ServiceLoader {
         } finally {
             stream.close();
         }
-        return names;
     }
 
 }

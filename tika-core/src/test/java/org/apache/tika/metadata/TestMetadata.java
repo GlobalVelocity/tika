@@ -72,6 +72,14 @@ public class TestMetadata extends TestCase {
         assertEquals("value1", values[0]);
         assertEquals("value2", values[1]);
         assertEquals("value1", values[2]);
+        
+        Property nonMultiValued = Property.internalText("nonMultiValued");
+        meta.add(nonMultiValued, "value1");
+        try {
+            meta.add(nonMultiValued, "value2");
+            fail("add should fail on the second call of a non-multi valued item");
+        } catch (PropertyTypeException e) {
+        }
     }
 
     /** Test for the <code>set(String, String)</code> method. */
@@ -226,7 +234,7 @@ public class TestMetadata extends TestCase {
             fail("Shouldn't be able to set a multi valued property as an int");
         } catch(PropertyTypeException e) {}
         try {
-            meta.set(Metadata.CREATION_DATE, 1);
+            meta.set(TikaCoreProperties.CREATED, 1);
             fail("Shouldn't be able to set a date property as an int");
         } catch(PropertyTypeException e) {}
         
@@ -244,7 +252,7 @@ public class TestMetadata extends TestCase {
         meta.set(Metadata.IMAGE_WIDTH, 22);
         assertEquals(22, meta.getInt(Metadata.IMAGE_WIDTH).intValue());
         assertEquals(null, meta.getInt(Metadata.BITS_PER_SAMPLE));
-        assertEquals(null, meta.getInt(Metadata.CREATION_DATE));
+        assertEquals(null, meta.getInt(TikaCoreProperties.CREATED));
     }
     
     /**
@@ -256,8 +264,8 @@ public class TestMetadata extends TestCase {
         long hour = 60 * 60 * 1000; 
         
         // Isn't initially set, will get null back
-        assertEquals(null, meta.get(Metadata.CREATION_DATE));
-        assertEquals(null, meta.getInt(Metadata.CREATION_DATE));
+        assertEquals(null, meta.get(TikaCoreProperties.CREATED));
+        assertEquals(null, meta.getInt(TikaCoreProperties.CREATED));
         
         // Can only set as a single valued date
         try {
@@ -270,52 +278,52 @@ public class TestMetadata extends TestCase {
         } catch(PropertyTypeException e) {}
         
         // Can set it and retrieve it
-        meta.set(Metadata.CREATION_DATE, new Date(1000));
-        assertEquals("1970-01-01T00:00:01Z", meta.get(Metadata.CREATION_DATE));
-        assertEquals(1000, meta.getDate(Metadata.CREATION_DATE).getTime());
+        meta.set(TikaCoreProperties.CREATED, new Date(1000));
+        assertEquals("1970-01-01T00:00:01Z", meta.get(TikaCoreProperties.CREATED));
+        assertEquals(1000, meta.getDate(TikaCoreProperties.CREATED).getTime());
         
         // If you save a non date value, you get null
-        meta.set(Metadata.CREATION_DATE, "INVALID");
-        assertEquals("INVALID", meta.get(Metadata.CREATION_DATE));
-        assertEquals(null, meta.getDate(Metadata.CREATION_DATE));
+        meta.set(TikaCoreProperties.CREATED, "INVALID");
+        assertEquals("INVALID", meta.get(TikaCoreProperties.CREATED));
+        assertEquals(null, meta.getDate(TikaCoreProperties.CREATED));
         
         // If you try to retrieve a non simple date value, you get null
-        meta.set(Metadata.CREATION_DATE, new Date(1000));
-        assertEquals(1000, meta.getDate(Metadata.CREATION_DATE).getTime());
+        meta.set(TikaCoreProperties.CREATED, new Date(1000));
+        assertEquals(1000, meta.getDate(TikaCoreProperties.CREATED).getTime());
         assertEquals(null, meta.getInt(Metadata.BITS_PER_SAMPLE));
-        assertEquals(null, meta.getInt(Metadata.CREATION_DATE));
+        assertEquals(null, meta.getInt(TikaCoreProperties.CREATED));
         
         // Our format doesn't include milliseconds
         // This means things get rounded 
-        meta.set(Metadata.CREATION_DATE, new Date(1050));
-        assertEquals("1970-01-01T00:00:01Z", meta.get(Metadata.CREATION_DATE));
-        assertEquals(1000, meta.getDate(Metadata.CREATION_DATE).getTime());
+        meta.set(TikaCoreProperties.CREATED, new Date(1050));
+        assertEquals("1970-01-01T00:00:01Z", meta.get(TikaCoreProperties.CREATED));
+        assertEquals(1000, meta.getDate(TikaCoreProperties.CREATED).getTime());
         
         // We can accept a number of different ISO-8601 variants
-        meta.set(Metadata.CREATION_DATE, "1970-01-01T00:00:01Z");
-        assertEquals(1000, meta.getDate(Metadata.CREATION_DATE).getTime());
+        meta.set(TikaCoreProperties.CREATED, "1970-01-01T00:00:01Z");
+        assertEquals(1000, meta.getDate(TikaCoreProperties.CREATED).getTime());
         
-        meta.set(Metadata.CREATION_DATE, "1970-01-01 00:00:01Z");
-        assertEquals(1000, meta.getDate(Metadata.CREATION_DATE).getTime());
+        meta.set(TikaCoreProperties.CREATED, "1970-01-01 00:00:01Z");
+        assertEquals(1000, meta.getDate(TikaCoreProperties.CREATED).getTime());
         
-        meta.set(Metadata.CREATION_DATE, "1970-01-01T01:00:01+01:00");
-        assertEquals(1000, meta.getDate(Metadata.CREATION_DATE).getTime());
+        meta.set(TikaCoreProperties.CREATED, "1970-01-01T01:00:01+01:00");
+        assertEquals(1000, meta.getDate(TikaCoreProperties.CREATED).getTime());
         
-        meta.set(Metadata.CREATION_DATE, "1970-01-01 01:00:01+01:00");
-        assertEquals(1000, meta.getDate(Metadata.CREATION_DATE).getTime());
+        meta.set(TikaCoreProperties.CREATED, "1970-01-01 01:00:01+01:00");
+        assertEquals(1000, meta.getDate(TikaCoreProperties.CREATED).getTime());
         
-        meta.set(Metadata.CREATION_DATE, "1970-01-01T12:00:01+12:00");
-        assertEquals(1000, meta.getDate(Metadata.CREATION_DATE).getTime());
+        meta.set(TikaCoreProperties.CREATED, "1970-01-01T12:00:01+12:00");
+        assertEquals(1000, meta.getDate(TikaCoreProperties.CREATED).getTime());
         
-        meta.set(Metadata.CREATION_DATE, "1969-12-31T12:00:01-12:00");
-        assertEquals(1000, meta.getDate(Metadata.CREATION_DATE).getTime());
+        meta.set(TikaCoreProperties.CREATED, "1969-12-31T12:00:01-12:00");
+        assertEquals(1000, meta.getDate(TikaCoreProperties.CREATED).getTime());
         
         // Dates without times, come in at midday UTC
-        meta.set(Metadata.CREATION_DATE, "1970-01-01");
-        assertEquals(12*hour, meta.getDate(Metadata.CREATION_DATE).getTime());
+        meta.set(TikaCoreProperties.CREATED, "1970-01-01");
+        assertEquals(12*hour, meta.getDate(TikaCoreProperties.CREATED).getTime());
         
-        meta.set(Metadata.CREATION_DATE, "1970:01:01");
-        assertEquals(12*hour, meta.getDate(Metadata.CREATION_DATE).getTime());
+        meta.set(TikaCoreProperties.CREATED, "1970:01:01");
+        assertEquals(12*hour, meta.getDate(TikaCoreProperties.CREATED).getTime());
     }
     
     /**
@@ -325,9 +333,32 @@ public class TestMetadata extends TestCase {
     public void testGetSetDateUnspecifiedTimezone() {
         Metadata meta = new Metadata();    
         
-        meta.set(Metadata.DATE, "1970-01-01T00:00:01");
+        meta.set(TikaCoreProperties.CREATED, "1970-01-01T00:00:01");
         assertEquals("should return string without time zone specifier because zone is not known",
-        		"1970-01-01T00:00:01", meta.get(Metadata.DATE));
+        		"1970-01-01T00:00:01", meta.get(TikaCoreProperties.CREATED));
     }
     
+    /**
+     * Defines a composite property, then checks that when set as the
+     *  composite the value can be retrieved with the property or the aliases
+     */
+    @SuppressWarnings("deprecation")
+    public void testCompositeProperty() {
+       Metadata meta = new Metadata();
+       Property compositeProperty = Property.composite(
+             DublinCore.DESCRIPTION, new Property[] { 
+                   Property.internalText(Metadata.DESCRIPTION),
+                   Property.internalText("testDescriptionAlt")
+             });
+       String message = "composite description";
+       meta.set(compositeProperty, message);
+
+       // Fetch as the composite
+       assertEquals(message, meta.get(compositeProperty));
+       // Fetch as the primary property on the composite
+       assertEquals(message, meta.get(DublinCore.DESCRIPTION));
+       // Fetch as the aliases
+       assertEquals(message, meta.get(Metadata.DESCRIPTION));
+       assertEquals(message, meta.get("testDescriptionAlt"));
+    }    
 }

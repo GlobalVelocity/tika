@@ -24,7 +24,6 @@ import org.apache.james.mime4j.codec.DecodeMonitor;
 import org.apache.james.mime4j.codec.DecoderUtil;
 import org.apache.james.mime4j.dom.address.Address;
 import org.apache.james.mime4j.dom.address.AddressList;
-import org.apache.james.mime4j.dom.address.Group;
 import org.apache.james.mime4j.dom.address.Mailbox;
 import org.apache.james.mime4j.dom.address.MailboxList;
 import org.apache.james.mime4j.dom.field.AddressListField;
@@ -36,9 +35,13 @@ import org.apache.james.mime4j.field.LenientFieldParser;
 import org.apache.james.mime4j.parser.ContentHandler;
 import org.apache.james.mime4j.stream.BodyDescriptor;
 import org.apache.james.mime4j.stream.Field;
+import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
@@ -54,21 +57,38 @@ class MailContentHandler implements ContentHandler {
     private boolean strictParsing = false;
 
     private XHTMLContentHandler handler;
+    private ParseContext context;
     private Metadata metadata;
+    private TikaConfig tikaConfig = null;
 
     private boolean inPart = false;
     
-    MailContentHandler(XHTMLContentHandler xhtml, Metadata metadata, boolean strictParsing) {
+    MailContentHandler(XHTMLContentHandler xhtml, Metadata metadata, ParseContext context, boolean strictParsing) {
         this.handler = xhtml;
+        this.context = context;
         this.metadata = metadata;
         this.strictParsing = strictParsing;
     }
 
     public void body(BodyDescriptor body, InputStream is) throws MimeException,
             IOException {
-        // call the underlying parser for the part
-        // TODO how to retrieve a non-default config?
-        AutoDetectParser parser = new AutoDetectParser();
+        // Work out the best underlying parser for the part
+        // Check first for a specified AutoDetectParser (which may have a
+        //  specific Config), then a recursing parser, and finally the default
+        Parser parser = context.get(AutoDetectParser.class);
+        if (parser == null) {
+           parser = context.get(Parser.class);
+        }
+        if (parser == null) {
+           if (tikaConfig == null) {
+              tikaConfig = context.get(TikaConfig.class);
+              if (tikaConfig == null) {
+                 tikaConfig = TikaConfig.getDefaultConfig();
+              }
+           }
+           parser = tikaConfig.getParser();
+        }
+
         // use a different metadata object
         // in order to specify the mime type of the
         // sub part without damaging the main metadata
@@ -79,7 +99,7 @@ class MailContentHandler implements ContentHandler {
 
         try {
             BodyContentHandler bch = new BodyContentHandler(handler);
-            parser.parse(is, new EmbeddedContentHandler(bch), submd);
+            parser.parse(is, new EmbeddedContentHandler(bch), submd, context);
         } catch (SAXException e) {
             throw new MimeException(e);
         } catch (TikaException e) {
@@ -147,7 +167,7 @@ class MailContentHandler implements ContentHandler {
                     for (int i = 0; i < mailboxList.size(); i++) {
                         String from = getDisplayString(mailboxList.get(i));
                         metadata.add(Metadata.MESSAGE_FROM, from);
-                        metadata.add(Metadata.AUTHOR, from);
+                        metadata.add(TikaCoreProperties.CREATOR, from);
                     }
                 } else {
                     String from = stripOutFieldPrefix(field, "From:");
@@ -158,10 +178,10 @@ class MailContentHandler implements ContentHandler {
                         from = from.substring(0, from.length() - 1);
                     }
                     metadata.add(Metadata.MESSAGE_FROM, from);
-                    metadata.add(Metadata.AUTHOR, from);
+                    metadata.add(TikaCoreProperties.CREATOR, from);
                 }
             } else if (fieldname.equalsIgnoreCase("Subject")) {
-                metadata.add(Metadata.SUBJECT,
+                metadata.add(TikaCoreProperties.TRANSITION_SUBJECT_TO_DC_TITLE,
                         ((UnstructuredField) parsedField).getValue());
             } else if (fieldname.equalsIgnoreCase("To")) {
                 processAddressList(parsedField, "To:", Metadata.MESSAGE_TO);
@@ -171,8 +191,7 @@ class MailContentHandler implements ContentHandler {
                 processAddressList(parsedField, "Bcc:", Metadata.MESSAGE_BCC);
             } else if (fieldname.equalsIgnoreCase("Date")) {
                 DateTimeField dateField = (DateTimeField) parsedField;
-                metadata.set(Metadata.DATE, dateField.getDate());
-                metadata.set(Metadata.CREATION_DATE, dateField.getDate());
+                metadata.set(TikaCoreProperties.CREATED, dateField.getDate());
             }
         } catch (RuntimeException me) {
             if (strictParsing) {

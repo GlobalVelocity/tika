@@ -14,21 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.tika.parser.internal;
+package org.apache.tika.xmp.convert;
 
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Service;
-import org.apache.tika.parser.DefaultParser;
-import org.apache.tika.parser.Parser;
+import org.apache.tika.metadata.Metadata;
 
-@Component @Service(Parser.class)
-public class OSGiParser extends DefaultParser {
+import com.adobe.xmp.XMPException;
+import com.adobe.xmp.XMPMeta;
 
-    /** Serial version UID */
-    private static final long serialVersionUID = -2496251420681985759L;
-
-    public OSGiParser() {
-        super(OSGiParser.class.getClassLoader());
-    }
-
+/**
+ * Interface for the specific <code>Metadata</code> to XMP converters
+ */
+public interface ITikaToXMPConverter {
+    /**
+     * Converts a Tika {@link Metadata}-object into an {@link XMPMeta} containing the useful
+     * properties.
+     *
+     * @param metadata
+     *            a Tika Metadata object
+     * @return Returns an XMPMeta object.
+     * @throws XMPException
+     *             If an error occurs during the creation of the XMP object.
+     */
+    XMPMeta process(Metadata metadata) throws XMPException;
 }

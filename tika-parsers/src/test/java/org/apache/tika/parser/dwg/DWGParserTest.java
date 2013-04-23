@@ -21,6 +21,7 @@ import java.io.InputStream;
 import junit.framework.TestCase;
 
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.sax.BodyContentHandler;
 import org.xml.sax.ContentHandler;
 
@@ -76,17 +77,25 @@ public class DWGParserTest extends TestCase {
             assertEquals("image/vnd.dwg", metadata.get(Metadata.CONTENT_TYPE));
 
             assertEquals("The quick brown fox jumps over the lazy dog", 
-                    metadata.get(Metadata.TITLE));
+                    metadata.get(TikaCoreProperties.TITLE));
+            assertEquals("Gym class featuring a brown fox and lazy dog",
+                    metadata.get(TikaCoreProperties.DESCRIPTION));
             assertEquals("Gym class featuring a brown fox and lazy dog",
                     metadata.get(Metadata.SUBJECT));
             assertEquals("Nevin Nollop",
-                    metadata.get(Metadata.AUTHOR));
+                    metadata.get(TikaCoreProperties.CREATOR));
             assertEquals("Pangram, fox, dog",
-                    metadata.get(Metadata.KEYWORDS));
+                    metadata.get(TikaCoreProperties.KEYWORDS));
             assertEquals("Lorem ipsum",
-                    metadata.get(Metadata.COMMENTS).substring(0,11));
+                    metadata.get(TikaCoreProperties.COMMENTS).substring(0,11));
             assertEquals("http://www.alfresco.com",
-                    metadata.get(Metadata.RELATION));
+                    metadata.get(TikaCoreProperties.RELATION));
+            
+            // Check some of the old style metadata too
+            assertEquals("The quick brown fox jumps over the lazy dog", 
+                  metadata.get(Metadata.TITLE));
+            assertEquals("Gym class featuring a brown fox and lazy dog",
+                  metadata.get(Metadata.SUBJECT));
 
             String content = handler.toString();
             assertTrue(content.contains("The quick brown fox jumps over the lazy dog"));
@@ -105,12 +114,13 @@ public class DWGParserTest extends TestCase {
 
             assertEquals("image/vnd.dwg", metadata.get(Metadata.CONTENT_TYPE));
             
-            assertNull(metadata.get(Metadata.TITLE));
+            assertNull(metadata.get(TikaCoreProperties.TITLE));
+            assertNull(metadata.get(TikaCoreProperties.DESCRIPTION));
             assertNull(metadata.get(Metadata.SUBJECT));
-            assertNull(metadata.get(Metadata.AUTHOR));
-            assertNull(metadata.get(Metadata.KEYWORDS));
-            assertNull(metadata.get(Metadata.COMMENTS));
-            assertNull(metadata.get(Metadata.RELATION));
+            assertNull(metadata.get(TikaCoreProperties.CREATOR));
+            assertNull(metadata.get(TikaCoreProperties.KEYWORDS));
+            assertNull(metadata.get(TikaCoreProperties.COMMENTS));
+            assertNull(metadata.get(TikaCoreProperties.RELATION));
 
             String content = handler.toString();
             assertTrue(content.contains(""));
@@ -128,19 +138,21 @@ public class DWGParserTest extends TestCase {
             assertEquals("image/vnd.dwg", metadata.get(Metadata.CONTENT_TYPE));
 
             assertEquals("Test Title", 
-                    metadata.get(Metadata.TITLE));
+                    metadata.get(TikaCoreProperties.TITLE));
+            assertEquals("Test Subject",
+                    metadata.get(TikaCoreProperties.DESCRIPTION));
             assertEquals("Test Subject",
                     metadata.get(Metadata.SUBJECT));
             assertEquals("My Author",
-                    metadata.get(Metadata.AUTHOR));
+                    metadata.get(TikaCoreProperties.CREATOR));
             assertEquals("My keyword1, MyKeyword2",
-                    metadata.get(Metadata.KEYWORDS));
+                    metadata.get(TikaCoreProperties.KEYWORDS));
             assertEquals("This is a comment",
-                    metadata.get(Metadata.COMMENTS));
+                    metadata.get(TikaCoreProperties.COMMENTS));
             assertEquals("bejanpol",
-                    metadata.get(Metadata.LAST_AUTHOR));
+                    metadata.get(TikaCoreProperties.MODIFIER));
             assertEquals("http://mycompany/drawings",
-                    metadata.get(Metadata.RELATION));
+                    metadata.get(TikaCoreProperties.RELATION));
             assertEquals("MyCustomPropertyValue",
                   metadata.get("MyCustomProperty"));
 

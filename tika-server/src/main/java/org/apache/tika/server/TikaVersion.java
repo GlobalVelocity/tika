@@ -14,12 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.tika.server;
 
-import java.io.IOException;
-import java.util.zip.ZipOutputStream;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 
-public interface PartExtractor<T> {
-  void extract(T part, ZipOutputStream output) throws IOException;
+import org.apache.tika.Tika;
+
+@Path("/version")
+public class TikaVersion {
+
+    @GET
+    @Produces("text/plain")
+    public String getVersion() {
+      return new Tika().toString();
+    }
+
 }

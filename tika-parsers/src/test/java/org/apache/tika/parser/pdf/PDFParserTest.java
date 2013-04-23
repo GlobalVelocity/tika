@@ -26,6 +26,8 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.apache.tika.TikaTest;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.OfficeOpenXMLCore;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
@@ -52,8 +54,10 @@ public class PDFParserTest extends TikaTest {
         }
 
         assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
+        assertEquals("Bertrand Delacr\u00e9taz", metadata.get(TikaCoreProperties.CREATOR));
         assertEquals("Bertrand Delacr\u00e9taz", metadata.get(Metadata.AUTHOR));
-        assertEquals("Apache Tika - Apache Tika", metadata.get(Metadata.TITLE));
+        assertEquals("Firefox", metadata.get(TikaCoreProperties.CREATOR_TOOL));
+        assertEquals("Apache Tika - Apache Tika", metadata.get(TikaCoreProperties.TITLE));
         
         // Can't reliably test dates yet - see TIKA-451 
 //        assertEquals("Sat Sep 15 10:02:31 BST 2007", metadata.get(Metadata.CREATION_DATE));
@@ -86,8 +90,9 @@ public class PDFParserTest extends TikaTest {
         }
 
         assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
+        assertEquals("Document author", metadata.get(TikaCoreProperties.CREATOR));
         assertEquals("Document author", metadata.get(Metadata.AUTHOR));
-        assertEquals("Document title", metadata.get(Metadata.TITLE));
+        assertEquals("Document title", metadata.get(TikaCoreProperties.TITLE));
         
         assertEquals("Custom Value", metadata.get("Custom Property"));
         assertEquals("Array Entry 1", metadata.get("Custom Array"));
@@ -119,9 +124,11 @@ public class PDFParserTest extends TikaTest {
        }
 
        assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
+       assertEquals("The Bank of England", metadata.get(TikaCoreProperties.CREATOR));
        assertEquals("The Bank of England", metadata.get(Metadata.AUTHOR));
+       assertEquals("Speeches by Andrew G Haldane", metadata.get(OfficeOpenXMLCore.SUBJECT));
        assertEquals("Speeches by Andrew G Haldane", metadata.get(Metadata.SUBJECT));
-       assertEquals("Rethinking the Financial Network, Speech by Andrew G Haldane, Executive Director, Financial Stability delivered at the Financial Student Association, Amsterdam on 28 April 2009", metadata.get(Metadata.TITLE));
+       assertEquals("Rethinking the Financial Network, Speech by Andrew G Haldane, Executive Director, Financial Stability delivered at the Financial Student Association, Amsterdam on 28 April 2009", metadata.get(TikaCoreProperties.TITLE));
 
        String content = handler.toString();
        assertTrue(content.contains("RETHINKING THE FINANCIAL NETWORK"));
@@ -149,9 +156,10 @@ public class PDFParserTest extends TikaTest {
        }
 
        assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
-       assertEquals("The Bank of England", metadata.get(Metadata.AUTHOR));
+       assertEquals("The Bank of England", metadata.get(TikaCoreProperties.CREATOR));
+       assertEquals("Speeches by Andrew G Haldane", metadata.get(OfficeOpenXMLCore.SUBJECT));
        assertEquals("Speeches by Andrew G Haldane", metadata.get(Metadata.SUBJECT));
-       assertEquals("Rethinking the Financial Network, Speech by Andrew G Haldane, Executive Director, Financial Stability delivered at the Financial Student Association, Amsterdam on 28 April 2009", metadata.get(Metadata.TITLE));
+       assertEquals("Rethinking the Financial Network, Speech by Andrew G Haldane, Executive Director, Financial Stability delivered at the Financial Student Association, Amsterdam on 28 April 2009", metadata.get(TikaCoreProperties.TITLE));
 
        assertTrue(content.contains("RETHINKING THE FINANCIAL NETWORK"));
        assertTrue(content.contains("On 16 November 2002"));
@@ -233,6 +241,8 @@ public class PDFParserTest extends TikaTest {
 
         assertContains("Subject is here", content);
         assertEquals("Subject is here",
+                     metadata.get(OfficeOpenXMLCore.SUBJECT));
+        assertEquals("Subject is here",
                      metadata.get(Metadata.SUBJECT));
 
         assertContains("Suddenly some Japanese text:", content);
@@ -287,6 +297,12 @@ public class PDFParserTest extends TikaTest {
                      substringCount("</p>", xml));
     }
 
+    public void testEmbeddedPDFs() throws Exception {
+        String xml = getXML("testPDFPackage.pdf").xml;
+        assertContains("PDF1", xml);
+        assertContains("PDF2", xml);
+    }
+
     private static int substringCount(String needle, String haystack) {
         int upto = -1;
         int count = 0;
@@ -306,6 +322,19 @@ public class PDFParserTest extends TikaTest {
         final XMLResult result = getXML("testPageNumber.pdf");
         final String content = result.xml.replaceAll("\\s+","");
         assertContains("<p>1</p>", content);
+    }
+
+    /**
+     * Test to ensure that Links are extracted from the text
+     * 
+     * Note - the PDF contains the text "This is a hyperlink" which
+     *  a hyperlink annotation, linking to the tika site, on it. This
+     *  test will need updating when we're able to apply the annotation
+     *  to the text itself, rather than following on afterwards as now 
+     */
+    public void testLinks() throws Exception {
+        final XMLResult result = getXML("testPDFVarious.pdf");
+        assertContains("<div class=\"annotation\"><a href=\"http://tika.apache.org/\"/></div>", result.xml);
     }
 
     public void testDisableAutoSpace() throws Exception {
@@ -427,10 +456,12 @@ public class PDFParserTest extends TikaTest {
         handler.getTransformer().setOutputProperty(OutputKeys.INDENT, "no");
         handler.setResult(new StreamResult(sw));
 
+        ParseContext context = new ParseContext();
+        context.set(Parser.class, parser);
         // Try with a document containing various tables and formattings
         InputStream input = getResourceAsStream("/test-documents/" + filename);
         try {
-            parser.parse(input, handler, metadata, new ParseContext());
+            parser.parse(input, handler, metadata, context);
             return new XMLResult(sw.toString(), metadata);
         } finally {
             input.close();

@@ -16,31 +16,25 @@
  */
 package org.apache.tika.parser.html;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+import org.apache.tika.config.ServiceLoader;
+import org.apache.tika.detect.AutoDetectReader;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.parser.txt.CharsetDetector;
-import org.apache.tika.parser.txt.CharsetMatch;
-import org.apache.tika.utils.CharsetUtils;
 import org.ccil.cowan.tagsoup.HTMLSchema;
 import org.ccil.cowan.tagsoup.Schema;
 import org.xml.sax.ContentHandler;
-import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /**
@@ -60,17 +54,11 @@ public class HtmlParser extends AbstractParser {
                 MediaType.application("vnd.wap.xhtml+xml"),
                 MediaType.application("x-asp"))));
 
-    // Use the widest, most common charset as our default.
-    private static final String DEFAULT_CHARSET = "windows-1252";
-    // TIKA-357 - use bigger buffer for meta tag sniffing (was 4K)
-    private static final int META_TAG_BUFFER_SIZE = 8192;
-    private static final Pattern HTTP_EQUIV_PATTERN = Pattern.compile(
-                    "(?is)<meta\\s+http-equiv\\s*=\\s*['\\\"]\\s*" +
-                    "Content-Type['\\\"]\\s+content\\s*=\\s*['\\\"]" +
-                    "([^'\\\"]+)['\\\"]");
+    private static final ServiceLoader LOADER =
+            new ServiceLoader(HtmlParser.class.getClassLoader());
 
     /**
-     * HTML schema singleton used to amortize the heavy instantiation time.
+     * HTML schema singleton used to amortise the heavy instantiation time.
      */
     private static final Schema HTML_SCHEMA = new HTMLSchema();
 
@@ -78,134 +66,45 @@ public class HtmlParser extends AbstractParser {
         return SUPPORTED_TYPES;
     }
 
-    /**
-     * TIKA-332: Check for meta http-equiv tag with charset info in
-     * HTML content.
-     * <p>
-     * TODO: Move this into core, along with CharsetDetector
-     */ 
-    private String getEncoding(InputStream stream, Metadata metadata) throws IOException {
-        stream.mark(META_TAG_BUFFER_SIZE);
-        char[] buffer = new char[META_TAG_BUFFER_SIZE];
-        InputStreamReader isr = new InputStreamReader(stream, "us-ascii");
-        int bufferSize = isr.read(buffer);
-        stream.reset();
-
-        if (bufferSize != -1) {
-            String metaString = new String(buffer, 0, bufferSize);
-            Matcher m = HTTP_EQUIV_PATTERN.matcher(metaString);
-            if (m.find()) {
-                // TIKA-349: flexible handling of attributes
-                // We have one or more x or x=y attributes, separated by ';'
-                String[] attrs = m.group(1).split(";");
-                for (String attr : attrs) {
-                    String[] keyValue = attr.trim().split("=");
-                    if ((keyValue.length == 2) && keyValue[0].equalsIgnoreCase("charset")) {
-                        // TIKA-459: improve charset handling.
-                    	String charset = CharsetUtils.clean(keyValue[1]);
-                    	if (CharsetUtils.isSupported(charset)) {
-                    	    metadata.set(Metadata.CONTENT_ENCODING, charset);
-                    	    return charset;
-                    	}
-                    }
-                }
-            }
-        }
-
-        // No (valid) charset in a meta http-equiv tag, see if it's in the passed content-encoding
-        // hint, or the passed content-type hint.
-        CharsetDetector detector = new CharsetDetector();
-        String incomingCharset = metadata.get(Metadata.CONTENT_ENCODING);
-        String incomingType = metadata.get(Metadata.CONTENT_TYPE);
-        if (incomingCharset == null && incomingType != null) {
-            // TIKA-341: Use charset in content-type
-            MediaType mt = MediaType.parse(incomingType);
-            if (mt != null) {
-                String charset = mt.getParameters().get("charset");
-                if ((charset != null) && Charset.isSupported(charset)) {
-                    incomingCharset = charset;
-                }
-            }
-        }
-
-        if (incomingCharset != null) {
-            detector.setDeclaredEncoding(incomingCharset);
-        }
-
-        // TIKA-341 without enabling input filtering (stripping of tags) the
-        // short HTML tests don't work well.
-        detector.enableInputFilter(true);
-        detector.setText(stream);
-        for (CharsetMatch match : detector.detectAll()) {
-            if (Charset.isSupported(match.getName())) {
-                metadata.set(Metadata.CONTENT_ENCODING, match.getName());
-
-                // TIKA-339: Don't set language, as it's typically not a very good
-                // guess, and it can create ambiguity if another (better) language
-                // value is specified by a meta tag in the HTML (or via HTTP response
-                // header).
-                /*
-                String language = match.getLanguage();
-                if (language != null) {
-                    metadata.set(Metadata.CONTENT_LANGUAGE, match.getLanguage());
-                    metadata.set(Metadata.LANGUAGE, match.getLanguage());
-                }
-                */
-                
-                break;
-            }
-        }
-
-        String encoding = metadata.get(Metadata.CONTENT_ENCODING);
-        if (encoding == null) {
-            if (Charset.isSupported(DEFAULT_CHARSET)) {
-                encoding = DEFAULT_CHARSET;
-            } else {
-                encoding = Charset.defaultCharset().name();
-            }
-            
-            metadata.set(Metadata.CONTENT_ENCODING, encoding);
-        }
-
-        return encoding;
-    }
-
     public void parse(
             InputStream stream, ContentHandler handler,
             Metadata metadata, ParseContext context)
             throws IOException, SAXException, TikaException {
-        // The getEncoding() method depends on the mark feature
-        if (!stream.markSupported()) {
-            stream = new BufferedInputStream(stream);
+        // Automatically detect the character encoding
+        AutoDetectReader reader = new AutoDetectReader(
+                new CloseShieldInputStream(stream), metadata, LOADER);
+        try {
+            Charset charset = reader.getCharset();
+            String previous = metadata.get(Metadata.CONTENT_TYPE);
+            if (previous == null || previous.startsWith("text/html")) {
+                MediaType type = new MediaType(MediaType.TEXT_HTML, charset);
+                metadata.set(Metadata.CONTENT_TYPE, type.toString());
+            }
+            // deprecated, see TIKA-431
+            metadata.set(Metadata.CONTENT_ENCODING, charset.name());
+
+            // Get the HTML mapper from the parse context
+            HtmlMapper mapper =
+                    context.get(HtmlMapper.class, new HtmlParserMapper());
+
+            // Parse the HTML document
+            org.ccil.cowan.tagsoup.Parser parser =
+                    new org.ccil.cowan.tagsoup.Parser();
+
+            // TIKA-528: Reuse share schema to avoid heavy instantiation
+            parser.setProperty(
+                    org.ccil.cowan.tagsoup.Parser.schemaProperty, HTML_SCHEMA);
+            // TIKA-599: Shared schema is thread-safe only if bogons are ignored
+            parser.setFeature(
+                    org.ccil.cowan.tagsoup.Parser.ignoreBogonsFeature, true);
+
+            parser.setContentHandler(new XHTMLDowngradeHandler(
+                    new HtmlHandler(mapper, handler, metadata)));
+
+            parser.parse(reader.asInputSource());
+        } finally {
+            reader.close();
         }
-
-        // Protect the stream from being closed by CyberNeko
-        // TODO: Is this still needed, given our use of TagSoup?
-        stream = new CloseShieldInputStream(stream);
-
-        // Prepare the input source using the encoding hint if available
-        InputSource source = new InputSource(stream); 
-        source.setEncoding(getEncoding(stream, metadata));
-
-        // Get the HTML mapper from the parse context
-        HtmlMapper mapper =
-            context.get(HtmlMapper.class, new HtmlParserMapper());
-
-        // Parse the HTML document
-        org.ccil.cowan.tagsoup.Parser parser =
-            new org.ccil.cowan.tagsoup.Parser();
-
-        // TIKA-528: Reuse share schema to avoid heavy instantiation
-        parser.setProperty(
-                org.ccil.cowan.tagsoup.Parser.schemaProperty, HTML_SCHEMA);
-        // TIKA-599: Shared schema is thread-safe only if bogons are ignored
-        parser.setFeature(
-                org.ccil.cowan.tagsoup.Parser.ignoreBogonsFeature, true);
-
-        parser.setContentHandler(new XHTMLDowngradeHandler(
-                new HtmlHandler(mapper, handler, metadata)));
-
-        parser.parse(source);
     }
 
     /**

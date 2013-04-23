@@ -30,6 +30,7 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.Property;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.metadata.XMPDM;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
@@ -38,8 +39,6 @@ import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
-import com.coremedia.iso.IsoBufferWrapper;
-import com.coremedia.iso.IsoBufferWrapperImpl;
 import com.coremedia.iso.IsoFile;
 import com.coremedia.iso.boxes.Box;
 import com.coremedia.iso.boxes.ContainerBox;
@@ -115,10 +114,7 @@ public class MP4Parser extends AbstractParser {
         //  avoid OOMs that may occur with in-memory buffering
         TikaInputStream tstream = TikaInputStream.get(stream);
         try {
-           IsoBufferWrapper isoBufferWrapper = 
-              new IsoBufferWrapperImpl(tstream.getFile());
-           isoFile = new IsoFile(isoBufferWrapper);
-           isoFile.parse();
+           isoFile = new IsoFile(tstream.getFileChannel());
         } finally {
            tstream.close();
         }
@@ -167,7 +163,7 @@ public class MP4Parser extends AbstractParser {
                  MP4TimeToDate(mHeader.getCreationTime())
            );
            metadata.set(
-                 Property.externalDate(Metadata.MODIFIED), // TODO Should be a real property
+                 TikaCoreProperties.MODIFIED,
                  MP4TimeToDate(mHeader.getModificationTime())
            );
            
@@ -189,11 +185,11 @@ public class MP4Parser extends AbstractParser {
            TrackHeaderBox header = track.getTrackHeaderBox();
            // Get the creation and modification dates
            metadata.set(
-                 Metadata.CREATION_DATE, 
+                 TikaCoreProperties.CREATED, 
                  MP4TimeToDate(header.getCreationTime())
            );
            metadata.set(
-                 Property.externalDate(Metadata.MODIFIED), // TODO Should be a real property
+                 TikaCoreProperties.MODIFIED,
                  MP4TimeToDate(header.getModificationTime())
            );
            
@@ -229,11 +225,11 @@ public class MP4Parser extends AbstractParser {
            if (apple != null) {
               // Title
               AppleTrackTitleBox title = getOrNull(apple, AppleTrackTitleBox.class);
-              addMetadata(Metadata.TITLE, metadata, title);
+              addMetadata(TikaCoreProperties.TITLE, metadata, title);
 
               // Artist
               AppleArtistBox artist = getOrNull(apple, AppleArtistBox.class);
-              addMetadata(Metadata.AUTHOR, metadata, artist);
+              addMetadata(TikaCoreProperties.CREATOR, metadata, artist);
               addMetadata(XMPDM.ARTIST, metadata, artist);
               
               // Album

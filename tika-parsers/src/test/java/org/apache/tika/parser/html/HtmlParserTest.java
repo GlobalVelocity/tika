@@ -36,6 +36,7 @@ import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Geographic;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.TeeContentHandler;
@@ -76,7 +77,7 @@ public class HtmlParserTest extends TestCase {
         }
 
         assertEquals(
-                "Title : Test Indexation Html", metadata.get(Metadata.TITLE));
+                "Title : Test Indexation Html", metadata.get(TikaCoreProperties.TITLE));
         assertEquals("Tika Developers", metadata.get("Author"));
         assertEquals("5", metadata.get("refresh"));
         
@@ -120,7 +121,7 @@ public class HtmlParserTest extends TestCase {
                 HtmlParserTest.class.getResourceAsStream(path), metadata);
 
         assertEquals("application/xhtml+xml", metadata.get(Metadata.CONTENT_TYPE));
-        assertEquals("XHTML test document", metadata.get(Metadata.TITLE));
+        assertEquals("XHTML test document", metadata.get(TikaCoreProperties.TITLE));
 
         assertEquals("Tika Developers", metadata.get("Author"));
         assertEquals("5", metadata.get("refresh"));
@@ -242,9 +243,25 @@ public class HtmlParserTest extends TestCase {
             + "</head><body></body></html>";
         Metadata metadata = new Metadata();
         new HtmlParser().parse (
-                new ByteArrayInputStream(test.getBytes("UTF-8")),
+                new ByteArrayInputStream(test.getBytes("ISO-8859-1")),
                 new BodyContentHandler(),  metadata, new ParseContext());
         assertEquals("ISO-8859-1", metadata.get(Metadata.CONTENT_ENCODING));
+    }
+
+    /**
+     * Test case for TIKA-892
+     * @see <a href="https://issues.apache.org/jira/browse/TIKA-892">TIKA-892</a>
+     */
+    public void testHtml5Charset() throws Exception {
+        String test =
+                "<html><head><meta charset=\"ISO-8859-15\" />"
+                + "<title>the name is \u00e1ndre</title>"
+                + "</head><body></body></html>";
+        Metadata metadata = new Metadata();
+        new HtmlParser().parse(
+                new ByteArrayInputStream(test.getBytes("ISO-8859-1")),
+                new BodyContentHandler(), metadata, new ParseContext());
+        assertEquals("ISO-8859-15", metadata.get(Metadata.CONTENT_ENCODING));
     }
 
     /**
@@ -258,7 +275,7 @@ public class HtmlParserTest extends TestCase {
         new HtmlParser().parse (
                 new ByteArrayInputStream(test.getBytes("UTF-8")),
                 new BodyContentHandler(),  metadata, new ParseContext());
-        assertEquals("\u017d", metadata.get(Metadata.TITLE));
+        assertEquals("\u017d", metadata.get(TikaCoreProperties.TITLE));
     }
 
     /**
@@ -279,7 +296,7 @@ public class HtmlParserTest extends TestCase {
         metadata = new Metadata();
         metadata.set(Metadata.CONTENT_TYPE, "text/html; charset=ISO-8859-1");
         new HtmlParser().parse (
-                new ByteArrayInputStream(test.getBytes("UTF-8")),
+                new ByteArrayInputStream(test.getBytes("ISO-8859-1")),
                 new BodyContentHandler(),  metadata, new ParseContext());
         assertEquals("ISO-8859-1", metadata.get(Metadata.CONTENT_ENCODING));
     }
@@ -325,26 +342,26 @@ public class HtmlParserTest extends TestCase {
     public void testHttpEquivCharsetFunkyAttributes() throws Exception {
         String test1 =
             "<html><head><meta http-equiv=\"content-type\""
-            + " content=\"text/html; charset=ISO-8859-1; charset=iso-8859-1\" />"
+            + " content=\"text/html; charset=ISO-8859-15; charset=iso-8859-15\" />"
             + "<title>the name is \u00e1ndre</title>"
             + "</head><body></body></html>";
         Metadata metadata = new Metadata();
         new HtmlParser().parse (
-                new ByteArrayInputStream(test1.getBytes("UTF-8")),
+                new ByteArrayInputStream(test1.getBytes("ISO-8859-1")),
                 new BodyContentHandler(),  metadata, new ParseContext());
-        assertEquals("ISO-8859-1", metadata.get(Metadata.CONTENT_ENCODING));
+        assertEquals("ISO-8859-15", metadata.get(Metadata.CONTENT_ENCODING));
 
         // Some HTML pages have errors like ';;' versus '; ' as separator
         String test2 =
             "<html><head><meta http-equiv=\"content-type\""
-            + " content=\"text/html;;charset=ISO-8859-1\" />"
+            + " content=\"text/html;;charset=ISO-8859-15\" />"
             + "<title>the name is \u00e1ndre</title>"
             + "</head><body></body></html>";
         metadata = new Metadata();
         new HtmlParser().parse (
-                new ByteArrayInputStream(test2.getBytes("UTF-8")),
+                new ByteArrayInputStream(test2.getBytes("ISO-8859-1")),
                 new BodyContentHandler(),  metadata, new ParseContext());
-        assertEquals("ISO-8859-1", metadata.get(Metadata.CONTENT_ENCODING));
+        assertEquals("ISO-8859-15", metadata.get(Metadata.CONTENT_ENCODING));
     }
 
     /**
@@ -365,7 +382,7 @@ public class HtmlParserTest extends TestCase {
         metadata = new Metadata();
         metadata.set(Metadata.CONTENT_TYPE, "charset=ISO-8859-1;text/html");
         new HtmlParser().parse (
-                new ByteArrayInputStream(test.getBytes("UTF-8")),
+                new ByteArrayInputStream(test.getBytes("ISO-8859-1")),
                 new BodyContentHandler(),  metadata, new ParseContext());
         assertEquals("ISO-8859-1", metadata.get(Metadata.CONTENT_ENCODING));
     }
@@ -568,9 +585,9 @@ public class HtmlParserTest extends TestCase {
                 makeHtmlTransformer(sw), metadata, new ParseContext());
 
         String result = sw.toString();
-        
+
         // <meta> tag for Content-Type should exist, but nothing for Language
-        assertTrue(Pattern.matches("(?s).*<meta name=\"Content-Type\" content=\"text/html; charset=utf-8\"/>.*$", result));
+        assertTrue(Pattern.matches("(?s).*<meta name=\"Content-Type\" content=\"text/html; charset=UTF-8\"/>.*$", result));
         assertFalse(Pattern.matches("(?s).*<meta name=\"Language\".*$", result));
     }
 

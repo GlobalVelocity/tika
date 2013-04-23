@@ -27,6 +27,10 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.apache.tika.TikaTest;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.Office;
+import org.apache.tika.metadata.OfficeOpenXMLCore;
+import org.apache.tika.metadata.OfficeOpenXMLExtended;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.microsoft.ooxml.OOXMLParserTest;
 import org.apache.tika.sax.BodyContentHandler;
@@ -45,7 +49,8 @@ public class WordParserTest extends TikaTest {
             assertEquals(
                     "application/msword",
                     metadata.get(Metadata.CONTENT_TYPE));
-            assertEquals("Sample Word Document", metadata.get(Metadata.TITLE));
+            assertEquals("Sample Word Document", metadata.get(TikaCoreProperties.TITLE));
+            assertEquals("Keith Bennett", metadata.get(TikaCoreProperties.CREATOR));
             assertEquals("Keith Bennett", metadata.get(Metadata.AUTHOR));
             assertTrue(handler.toString().contains("Sample Word Document"));
         } finally {
@@ -114,7 +119,8 @@ public class WordParserTest extends TikaTest {
         assertEquals(
                      "application/msword",
                      metadata.get(Metadata.CONTENT_TYPE));
-        assertEquals("Sample Word Document", metadata.get(Metadata.TITLE));
+        assertEquals("Sample Word Document", metadata.get(TikaCoreProperties.TITLE));
+        assertEquals("Keith Bennett", metadata.get(TikaCoreProperties.CREATOR));
         assertEquals("Keith Bennett", metadata.get(Metadata.AUTHOR));
         assertTrue(xml.contains("Sample Word Document"));
 
@@ -176,8 +182,10 @@ public class WordParserTest extends TikaTest {
             assertEquals(
                     "application/msword",
                     metadata.get(Metadata.CONTENT_TYPE));
-            assertEquals("The quick brown fox jumps over the lazy dog", metadata.get(Metadata.TITLE));
+            assertEquals("The quick brown fox jumps over the lazy dog", metadata.get(TikaCoreProperties.TITLE));
+            assertEquals("Gym class featuring a brown fox and lazy dog", metadata.get(OfficeOpenXMLCore.SUBJECT));
             assertEquals("Gym class featuring a brown fox and lazy dog", metadata.get(Metadata.SUBJECT));
+            assertEquals("Nevin Nollop", metadata.get(TikaCoreProperties.CREATOR));
             assertEquals("Nevin Nollop", metadata.get(Metadata.AUTHOR));
             assertTrue(handler.toString().contains("The quick brown fox jumps over the lazy dog"));
         } finally {
@@ -237,11 +245,14 @@ public class WordParserTest extends TikaTest {
 
         assertContains("Keyword1 Keyword2", content);
         assertEquals("Keyword1 Keyword2",
-                     metadata.get(Metadata.KEYWORDS));
+                     metadata.get(TikaCoreProperties.KEYWORDS));
 
         assertContains("Subject is here", content);
+        // TODO: Move to OO subject in Tika 2.0
         assertEquals("Subject is here",
                      metadata.get(Metadata.SUBJECT));
+        assertEquals("Subject is here",
+                     metadata.get(OfficeOpenXMLCore.SUBJECT));
 
         assertContains("Suddenly some Japanese text:", content);
         // Special version of (GHQ)
@@ -271,19 +282,21 @@ public class WordParserTest extends TikaTest {
        }
        
        assertEquals("application/msword",   metadata.get(Metadata.CONTENT_TYPE));
-       assertEquals("EJ04325S",             metadata.get(Metadata.AUTHOR));
-       assertEquals("Etienne Jouvin",       metadata.get(Metadata.LAST_AUTHOR));
-       assertEquals("2012-01-03T22:14:00Z", metadata.get(Metadata.LAST_SAVED));
-       assertEquals("2010-10-05T09:03:00Z", metadata.get(Metadata.CREATION_DATE));
-       assertEquals("Microsoft Office Word",metadata.get(Metadata.APPLICATION_NAME));
-       assertEquals("1",                    metadata.get(Metadata.PAGE_COUNT));
-       assertEquals("2",                    metadata.get(Metadata.WORD_COUNT));
-       assertEquals("My Title",             metadata.get(Metadata.TITLE));
-       assertEquals("My Keyword",           metadata.get(Metadata.KEYWORDS));
-       assertEquals("Normal.dotm",          metadata.get(Metadata.TEMPLATE));
-       assertEquals("My Comments",          metadata.get(Metadata.COMMENTS));
+       assertEquals("EJ04325S",             metadata.get(TikaCoreProperties.CREATOR));
+       assertEquals("Etienne Jouvin",       metadata.get(TikaCoreProperties.MODIFIER));
+       assertEquals("2012-01-03T22:14:00Z", metadata.get(TikaCoreProperties.MODIFIED));
+       assertEquals("2010-10-05T09:03:00Z", metadata.get(TikaCoreProperties.CREATED));
+       assertEquals("Microsoft Office Word",metadata.get(OfficeOpenXMLExtended.APPLICATION));
+       assertEquals("1",                    metadata.get(Office.PAGE_COUNT));
+       assertEquals("2",                    metadata.get(Office.WORD_COUNT));
+       assertEquals("My Title",             metadata.get(TikaCoreProperties.TITLE));
+       assertEquals("My Keyword",           metadata.get(TikaCoreProperties.KEYWORDS));
+       assertEquals("Normal.dotm",          metadata.get(OfficeOpenXMLExtended.TEMPLATE));
+       assertEquals("My Comments",          metadata.get(TikaCoreProperties.COMMENTS));
+       // TODO: Move to OO subject in Tika 2.0
        assertEquals("My subject",           metadata.get(Metadata.SUBJECT));
-       assertEquals("EDF-DIT",              metadata.get(Metadata.COMPANY));
+       assertEquals("My subject",           metadata.get(OfficeOpenXMLCore.SUBJECT));
+       assertEquals("EDF-DIT",              metadata.get(OfficeOpenXMLExtended.COMPANY));
        assertEquals("MyStringValue",        metadata.get("custom:MyCustomString"));
        assertEquals("2010-12-30T23:00:00Z", metadata.get("custom:MyCustomDate"));
     }

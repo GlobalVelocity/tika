@@ -39,14 +39,14 @@ public class AutoDetectParserTest extends TestCase {
     // Easy to read constants for the MIME types:
     private static final String RAW        = "application/octet-stream";
     private static final String EXCEL      = "application/vnd.ms-excel";
-    private static final String HTML       = "text/html";
+    private static final String HTML       = "text/html; charset=ISO-8859-1";
     private static final String PDF        = "application/pdf";
     private static final String POWERPOINT = "application/vnd.ms-powerpoint";
     private static final String KEYNOTE    = "application/vnd.apple.keynote";
     private static final String PAGES      = "application/vnd.apple.pages";
     private static final String NUMBERS    = "application/vnd.apple.numbers";
     private static final String RTF        = "application/rtf";
-    private static final String PLAINTEXT  = "text/plain";
+    private static final String PLAINTEXT  = "text/plain; charset=ISO-8859-1";
     private static final String WORD       = "application/msword";
     private static final String XML        = "application/xml";
     private static final String RSS        = "application/rss+xml";
@@ -235,11 +235,12 @@ public class AutoDetectParserTest extends TestCase {
         }
     
     }
-    
+
     /**
      * Test to ensure that the Vorbis and FLAC parsers have been correctly
      *  included, and are available
      */
+    @SuppressWarnings("deprecation")
     public void testVorbisFlac() throws Exception {
        // The three test files should all have similar test data
        String[] testFiles = new String[] {
@@ -277,6 +278,8 @@ public class AutoDetectParserTest extends TestCase {
              // Check some of the common metadata
              assertEquals("Test Artist", metadata.get(Metadata.AUTHOR));
              assertEquals("Test Title", metadata.get(Metadata.TITLE));
+//             assertEquals("Test Artist", metadata.get(TikaCoreProperties.AUTHOR));
+//             assertEquals("Test Title", metadata.get(TikaCoreProperties.TITLE));
              
              // Check some of the XMPDM metadata
              assertEquals("Test Album", metadata.get(XMPDM.ALBUM));

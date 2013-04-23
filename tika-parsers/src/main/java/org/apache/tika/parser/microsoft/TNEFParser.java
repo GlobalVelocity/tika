@@ -33,6 +33,7 @@ import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
@@ -81,7 +82,8 @@ public class TNEFParser extends AbstractParser {
        // Set the message subject if known
        String subject = msg.getSubject();
        if(subject != null && subject.length() > 0) {
-          metadata.set(Metadata.SUBJECT, subject);
+          // TODO: Move to title in Tika 2.0
+          metadata.set(TikaCoreProperties.TRANSITION_SUBJECT_TO_DC_TITLE, subject);
        }
        
        // Recurse into the message body RTF

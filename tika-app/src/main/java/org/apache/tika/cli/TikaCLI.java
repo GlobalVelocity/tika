@@ -53,11 +53,16 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.SimpleLayout;
 import org.apache.log4j.WriterAppender;
+import org.apache.poi.poifs.filesystem.DirectoryEntry;
+import org.apache.poi.poifs.filesystem.DocumentEntry;
+import org.apache.poi.poifs.filesystem.DocumentInputStream;
+import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 import org.apache.tika.Tika;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.detect.CompositeDetector;
 import org.apache.tika.detect.DefaultDetector;
 import org.apache.tika.detect.Detector;
+import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.fork.ForkParser;
 import org.apache.tika.gui.TikaGUI;
@@ -76,9 +81,10 @@ import org.apache.tika.parser.NetworkParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ParserDecorator;
+import org.apache.tika.parser.PasswordProvider;
 import org.apache.tika.parser.html.BoilerpipeContentHandler;
 import org.apache.tika.sax.BodyContentHandler;
-import org.apache.tika.sax.XMPContentHandler;
+import org.apache.tika.xmp.XMPMetadata;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -89,6 +95,7 @@ import com.google.gson.Gson;
  * Simple command line interface for Apache Tika.
  */
 public class TikaCLI {
+    private File extractDir = new File(".");
 
     public static void main(String[] args) throws Exception {
         BasicConfigurator.configure(
@@ -120,14 +127,15 @@ public class TikaCLI {
 
     private class OutputType {
 
-        public void process(InputStream input, OutputStream output)
+        public void process(
+                InputStream input, OutputStream output, Metadata metadata)
                 throws Exception {
             Parser p = parser;
             if (fork) {
                 p = new ForkParser(TikaCLI.class.getClassLoader(), p);
             }
-            ContentHandler handler = getContentHandler(output);
-            p.parse(input, handler, metadata, context);   
+            ContentHandler handler = getContentHandler(output, metadata);
+            p.parse(input, handler, metadata, context);
             // fix for TIKA-596: if a parser doesn't generate
             // XHTML output, the lack of an output document prevents
             // metadata from being output: this fixes that
@@ -139,8 +147,8 @@ public class TikaCLI {
             }
         }
 
-        protected ContentHandler getContentHandler(OutputStream output)
-                throws Exception {
+        protected ContentHandler getContentHandler(
+                OutputStream output, Metadata metadata) throws Exception {
             throw new UnsupportedOperationException();
         }
         
@@ -148,85 +156,78 @@ public class TikaCLI {
 
     private final OutputType XML = new OutputType() {
         @Override
-        protected ContentHandler getContentHandler(OutputStream output)
-                throws Exception {
+        protected ContentHandler getContentHandler(
+                OutputStream output, Metadata metadata) throws Exception {
             return getTransformerHandler(output, "xml", encoding, prettyPrint);
         }
     };
 
     private final OutputType HTML = new OutputType() {
         @Override
-        protected ContentHandler getContentHandler(OutputStream output)
-                throws Exception {
+        protected ContentHandler getContentHandler(
+                OutputStream output, Metadata metadata) throws Exception {
             return getTransformerHandler(output, "html", encoding, prettyPrint);
         }
     };
 
     private final OutputType TEXT = new OutputType() {
         @Override
-        protected ContentHandler getContentHandler(OutputStream output)
-                throws Exception {
+        protected ContentHandler getContentHandler(
+                OutputStream output, Metadata metadata) throws Exception {
             return new BodyContentHandler(getOutputWriter(output, encoding));
         }
     };
 
     private final OutputType NO_OUTPUT = new OutputType() {
         @Override
-        protected ContentHandler getContentHandler(OutputStream output) {
+        protected ContentHandler getContentHandler(
+                OutputStream output, Metadata metadata) {
             return new DefaultHandler();
         }
     };
 
     private final OutputType TEXT_MAIN = new OutputType() {
         @Override
-        protected ContentHandler getContentHandler(OutputStream output)
-                throws Exception {
+        protected ContentHandler getContentHandler(
+                OutputStream output, Metadata metadata) throws Exception {
             return new BoilerpipeContentHandler(getOutputWriter(output, encoding));
         }
     };
     
     private final OutputType METADATA = new OutputType() {
         @Override
-        protected ContentHandler getContentHandler(OutputStream output)
-                throws Exception {
+        protected ContentHandler getContentHandler(
+                OutputStream output, Metadata metadata) throws Exception {
             final PrintWriter writer =
                 new PrintWriter(getOutputWriter(output, encoding));
-            return new NoDocumentMetHandler(writer);
+            return new NoDocumentMetHandler(metadata, writer);
         }
     };
 
     private final OutputType JSON = new OutputType() {
         @Override
-        protected ContentHandler getContentHandler(OutputStream output)
-                throws Exception {
+        protected ContentHandler getContentHandler(
+                OutputStream output, Metadata metadata) throws Exception {
             final PrintWriter writer =
                     new PrintWriter(getOutputWriter(output, encoding));
-            return new NoDocumentJSONMetHandler(writer);
+            return new NoDocumentJSONMetHandler(metadata, writer);
         }
     };
 
     private final OutputType XMP = new OutputType() {
         @Override
-        protected ContentHandler getContentHandler(OutputStream output)
-                throws Exception {
-            final ContentHandler handler =
-                    getTransformerHandler(output, "xml", encoding, prettyPrint);
-            return new DefaultHandler() {
-                @Override
-                public void endDocument() throws SAXException {
-                    XMPContentHandler xmp = new XMPContentHandler(handler);
-                    xmp.startDocument();
-                    xmp.metadata(metadata);
-                    xmp.endDocument();
-                }
-            };
+        protected ContentHandler getContentHandler(
+                OutputStream output, final Metadata metadata) throws Exception {
+            final PrintWriter writer =
+                    new PrintWriter(getOutputWriter(output, encoding));
+            return new NoDocumentXMPMetaHandler(metadata, writer);
         }
     };
 
     private final OutputType LANGUAGE = new OutputType() {
         @Override
-        protected ContentHandler getContentHandler(OutputStream output)
-                throws Exception {
+        protected ContentHandler getContentHandler(
+                OutputStream output, Metadata metadata) throws Exception {
             final PrintWriter writer =
                 new PrintWriter(getOutputWriter(output, encoding));
             return new ProfilingHandler() {
@@ -240,7 +241,8 @@ public class TikaCLI {
 
     private final OutputType DETECT = new OutputType() {
         @Override
-        public void process(InputStream stream, OutputStream output)
+        public void process(
+                InputStream stream, OutputStream output, Metadata metadata)
                 throws Exception {
             PrintWriter writer =
                 new PrintWriter(getOutputWriter(output, encoding));
@@ -253,7 +255,8 @@ public class TikaCLI {
     /* Creates ngram profile */
     private final OutputType CREATE_PROFILE = new OutputType() {
         @Override
-        public void process(InputStream stream, OutputStream output)
+        public void process(
+                InputStream stream, OutputStream output, Metadata metadata)
                 throws Exception {
             ngp = LanguageProfilerBuilder.create(profileName, stream, encoding);
             FileOutputStream fos = new FileOutputStream(new File(profileName + ".ngp"));
@@ -271,8 +274,6 @@ public class TikaCLI {
 
     private Parser parser;
 
-    private Metadata metadata;
-
     private OutputType type = XML;
     
     private LanguageProfilerBuilder ngp = null;
@@ -281,6 +282,11 @@ public class TikaCLI {
      * Output character encoding, or <code>null</code> for platform default
      */
     private String encoding = null;
+
+    /**
+     * Password for opening encrypted documents, or <code>null</code>.
+     */
+    private String password = System.getenv("TIKA_PASSWORD");
 
     private boolean pipeMode = true;
 
@@ -297,6 +303,11 @@ public class TikaCLI {
         detector = new DefaultDetector();
         parser = new AutoDetectParser(detector);
         context.set(Parser.class, parser);
+        context.set(PasswordProvider.class, new PasswordProvider() {
+            public String getPassword(Metadata metadata) {
+                return password;
+            }
+        });
     }
 
     public void process(String arg) throws Exception {
@@ -335,6 +346,10 @@ public class TikaCLI {
             encoding = arg.substring("-e".length());
         } else if (arg.startsWith("--encoding=")) {
             encoding = arg.substring("--encoding=".length());
+        } else if (arg.startsWith("-p") && !arg.equals("-p")) {
+            password = arg.substring("-p".length());
+        } else if (arg.startsWith("--password=")) {
+            password = arg.substring("--password=".length());
         } else  if (arg.equals("-j") || arg.equals("--json")) {
             type = JSON;
         } else  if (arg.equals("-y") || arg.equals("--xmp")) {
@@ -353,6 +368,8 @@ public class TikaCLI {
             type = LANGUAGE;
         } else if (arg.equals("-d") || arg.equals("--detect")) {
             type = DETECT;
+        } else if (arg.startsWith("--extract-dir=")) {
+            extractDir = new File(arg.substring("--extract-dir=".length()));
         } else if (arg.equals("-z") || arg.equals("--extract")) {
             type = NO_OUTPUT;
             context.set(EmbeddedDocumentExtractor.class, new FileEmbeddedDocumentExtractor());
@@ -373,14 +390,13 @@ public class TikaCLI {
             type = CREATE_PROFILE;
         } else {
             pipeMode = false;
-            metadata = new Metadata();
             if (serverMode) {
                 new TikaServer(Integer.parseInt(arg)).start();
             } else if (arg.equals("-")) {
                 InputStream stream =
                     TikaInputStream.get(new CloseShieldInputStream(System.in));
                 try {
-                    type.process(stream, System.out);
+                    type.process(stream, System.out, new Metadata());
                 } finally {
                     stream.close();
                 }
@@ -392,9 +408,10 @@ public class TikaCLI {
                 } else {
                     url = new URL(arg);
                 }
+                Metadata metadata = new Metadata();
                 InputStream input = TikaInputStream.get(url, metadata);
                 try {
-                    type.process(input, System.out);
+                    type.process(input, System.out, metadata);
                 } finally {
                     input.close();
                     System.out.flush();
@@ -426,7 +443,9 @@ public class TikaCLI {
         out.println("    -l  or --language      Output only language");
         out.println("    -d  or --detect        Detect document type");
         out.println("    -eX or --encoding=X    Use output encoding X");
-        out.println("    -z  or --extract       Extract all attachements into current directory");        
+        out.println("    -pX or --password=X    Use document password X");
+        out.println("    -z  or --extract       Extract all attachements into current directory");
+        out.println("    --extract-dir=<dir>    Specify target directory for -z");
         out.println("    -r  or --pretty-print  For XML and XHTML outputs, adds newlines and");
         out.println("                           whitespace, for better readability");
         out.println();
@@ -685,7 +704,7 @@ public class TikaCLI {
                 }
             }
 
-            File outputFile = new File(name);
+            File outputFile = new File(extractDir, name);
             if (outputFile.exists()) {
                 System.err.println("File '"+name+"' already exists; skipping");
                 return;
@@ -695,9 +714,40 @@ public class TikaCLI {
 
             FileOutputStream os = new FileOutputStream(outputFile);
 
-            IOUtils.copy(inputStream, os);
+            if (inputStream instanceof TikaInputStream) {
+                TikaInputStream tin = (TikaInputStream) inputStream;
+
+                if (tin.getOpenContainer() != null && tin.getOpenContainer() instanceof DirectoryEntry) {
+                    POIFSFileSystem fs = new POIFSFileSystem();
+                    copy((DirectoryEntry) tin.getOpenContainer(), fs.getRoot());
+                    fs.writeFilesystem(os);
+                } else {
+                    IOUtils.copy(inputStream, os);
+                }
+            } else {
+                IOUtils.copy(inputStream, os);
+            }
 
             os.close();
+        }
+
+        protected void copy(DirectoryEntry sourceDir, DirectoryEntry destDir)
+                throws IOException {
+            for (org.apache.poi.poifs.filesystem.Entry entry : sourceDir) {
+                if (entry instanceof DirectoryEntry) {
+                    // Need to recurse
+                    DirectoryEntry newDir = destDir.createDirectory(entry.getName());
+                    copy((DirectoryEntry) entry, newDir);
+                } else {
+                    // Copy entry
+                    InputStream contents = new DocumentInputStream((DocumentEntry) entry);
+                    try {
+                        destDir.createDocument(entry.getName(), contents);
+                    } finally {
+                        contents.close();
+                    }
+                }
+            }
         }
     }
 
@@ -731,8 +781,9 @@ public class TikaCLI {
                 public void run() {
                     try {
                         try {
+                            InputStream input = socket.getInputStream();
                             OutputStream output = socket.getOutputStream();
-                            type.process(socket.getInputStream(), output);
+                            type.process(input, output, new Metadata());
                             output.flush();
                         } finally {
                             socket.close();
@@ -748,13 +799,16 @@ public class TikaCLI {
 
     }
     
-    private class NoDocumentMetHandler extends DefaultHandler{
-        
+    private class NoDocumentMetHandler extends DefaultHandler {
+
+        protected final Metadata metadata;
+
         protected PrintWriter writer;
         
         private boolean metOutput;
-        
-        public NoDocumentMetHandler(PrintWriter writer){
+
+        public NoDocumentMetHandler(Metadata metadata, PrintWriter writer){
+            this.metadata = metadata;
             this.writer = writer;
             this.metOutput = false;
         }
@@ -783,13 +837,47 @@ public class TikaCLI {
     /**
      * Uses GSON to do the JsonExtractor$ escaping, but does
      *  the general JsonExtractor$ glueing ourselves.
+     * Outputs the Tika metadata as XMP using the Tika XMP module
+     */
+    private class NoDocumentXMPMetaHandler extends DefaultHandler
+    {
+    	protected final Metadata metadata;
+    	
+        protected PrintWriter writer;
+        
+        public NoDocumentXMPMetaHandler(Metadata metadata, PrintWriter writer){
+        	this.metadata = metadata;
+            this.writer = writer;
+        }
+        
+        @Override
+        public void endDocument() throws SAXException 
+        {
+        	try 
+        	{
+        		XMPMetadata xmp = new XMPMetadata(metadata);
+        		String result;
+        		result = xmp.toString();
+        		writer.write(result);
+        		writer.flush();
+        	} 
+        	catch (TikaException e) 
+        	{
+        		throw new SAXException(e);
+        	}
+        }
+    }
+    
+    /**
+     * Uses GSON to do the JSON escaping, but does
+     *  the general JSON glueing ourselves.
      */
     private class NoDocumentJSONMetHandler extends NoDocumentMetHandler {
         private NumberFormat formatter;
         private Gson gson;
        
-        public NoDocumentJSONMetHandler(PrintWriter writer){
-            super(writer);
+        public NoDocumentJSONMetHandler(Metadata metadata, PrintWriter writer){
+            super(metadata, writer);
             
             formatter = NumberFormat.getInstance();
             gson = new Gson();

@@ -37,6 +37,7 @@ import org.apache.poi.poifs.filesystem.NPOIFSFileSystem;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.html.HtmlParser;
 import org.apache.tika.parser.mbox.MboxParser;
@@ -99,14 +100,16 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
            String subject = msg.getSubject();
            String from = msg.getDisplayFrom();
    
-           metadata.set(Metadata.AUTHOR, from);
+           metadata.set(TikaCoreProperties.CREATOR, from);
            metadata.set(Metadata.MESSAGE_FROM, from);
            metadata.set(Metadata.MESSAGE_TO, msg.getDisplayTo());
            metadata.set(Metadata.MESSAGE_CC, msg.getDisplayCC());
            metadata.set(Metadata.MESSAGE_BCC, msg.getDisplayBCC());
            
-           metadata.set(Metadata.TITLE, subject);
-           metadata.set(Metadata.SUBJECT, msg.getConversationTopic());
+           metadata.set(TikaCoreProperties.TITLE, subject);
+           // TODO: Move to description in Tika 2.0
+           metadata.set(TikaCoreProperties.TRANSITION_SUBJECT_TO_DC_DESCRIPTION, 
+                   msg.getConversationTopic());
            
            try {
            for(String recipientAddress : msg.getRecipientEmailAddressList()) {
@@ -118,9 +121,8 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
            // Date - try two ways to find it
            // First try via the proper chunk
            if(msg.getMessageDate() != null) {
-              metadata.set(Metadata.DATE, msg.getMessageDate().getTime());
-              metadata.set(Metadata.CREATION_DATE, msg.getMessageDate().getTime());
-              metadata.set(Metadata.LAST_SAVED, msg.getMessageDate().getTime());
+              metadata.set(TikaCoreProperties.CREATED, msg.getMessageDate().getTime());
+              metadata.set(TikaCoreProperties.MODIFIED, msg.getMessageDate().getTime());
            } else {
               try {
                  // Failing that try via the raw headers 
@@ -133,14 +135,12 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
                             // See if we can parse it as a normal mail date
                             try {
                                Date d = MboxParser.parseDate(date);
-                               metadata.set(Metadata.DATE, d);
-                               metadata.set(Metadata.CREATION_DATE, d);
-                               metadata.set(Metadata.LAST_SAVED, d);
+                               metadata.set(TikaCoreProperties.CREATED, d);
+                               metadata.set(TikaCoreProperties.MODIFIED, d);
                             } catch(ParseException e) {
                                // Store it as-is, and hope for the best...
-                               metadata.set(Metadata.DATE, date);
-                               metadata.set(Metadata.CREATION_DATE, date);
-                               metadata.set(Metadata.LAST_SAVED, date);
+                               metadata.set(TikaCoreProperties.CREATED, date);
+                               metadata.set(TikaCoreProperties.MODIFIED, date);
                             }
                             break;
                         }
@@ -195,7 +195,6 @@ public class OutlookExtractor extends AbstractPOIFSExtractor {
                  data = ((StringChunk)htmlChunk).getRawValue();
               }
               if(data != null) {
-                  // nocommit same problem here?
                  HtmlParser htmlParser = new HtmlParser();
                  htmlParser.parse(
                        new ByteArrayInputStream(data),
