@@ -32,7 +32,7 @@
 
     <groupId>com.globalvelocity.tika</groupId>
     <artifactId>tika-parent</artifactId>
-    <version>1.2-2-SNAPSHOT</version>
+    <version>1.2-2</version>
     <packaging>pom</packaging>
 
     <name>Global Velocity :: Product :: Source :: Tika :: Tika-Parent</name>
