@@ -17,12 +17,6 @@
 package org.apache.tika.parser.pdf;
 
 import java.io.InputStream;
-import java.io.StringWriter;
-
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.sax.SAXTransformerFactory;
-import javax.xml.transform.sax.TransformerHandler;
-import javax.xml.transform.stream.StreamResult;
 
 import org.apache.tika.TikaTest;
 import org.apache.tika.metadata.Metadata;
@@ -297,6 +291,23 @@ public class PDFParserTest extends TikaTest {
                      substringCount("</p>", xml));
     }
 
+    // TIKA-981
+    public void testPopupAnnotation() throws Exception {
+        Parser parser = new AutoDetectParser(); // Should auto-detect!
+        ContentHandler handler = new BodyContentHandler();
+        Metadata metadata = new Metadata();
+        ParseContext context = new ParseContext();
+        InputStream stream = getResourceAsStream("/test-documents/testPopupAnnotation.pdf");
+        try {
+            parser.parse(stream, handler, metadata, context);
+        } finally {
+            stream.close();
+        }
+        String content = handler.toString();
+        assertContains("this is the note", content);
+        assertContains("igalsh", content);
+    }
+
     public void testEmbeddedPDFs() throws Exception {
         String xml = getXML("testPDFPackage.pdf").xml;
         assertContains("PDF1", xml);
@@ -435,36 +446,13 @@ public class PDFParserTest extends TikaTest {
         assertContains("Left column line 1 Right column line 1 Left colu mn line 2 Right column line 2", content);
     }
 
-    private static class XMLResult {
-        public final String xml;
-        public final Metadata metadata;
-
-        public XMLResult(String xml, Metadata metadata) {
-            this.xml = xml;
-            this.metadata = metadata;
-      }
-    }
-
-    private XMLResult getXML(String filename) throws Exception {
-        Metadata metadata = new Metadata();
-        Parser parser = new AutoDetectParser(); // Should auto-detect!        
-        StringWriter sw = new StringWriter();
-        SAXTransformerFactory factory = (SAXTransformerFactory)
-                 SAXTransformerFactory.newInstance();
-        TransformerHandler handler = factory.newTransformerHandler();
-        handler.getTransformer().setOutputProperty(OutputKeys.METHOD, "xml");
-        handler.getTransformer().setOutputProperty(OutputKeys.INDENT, "no");
-        handler.setResult(new StreamResult(sw));
-
-        ParseContext context = new ParseContext();
-        context.set(Parser.class, parser);
-        // Try with a document containing various tables and formattings
-        InputStream input = getResourceAsStream("/test-documents/" + filename);
-        try {
-            parser.parse(input, handler, metadata, context);
-            return new XMLResult(sw.toString(), metadata);
-        } finally {
-            input.close();
-        }
+    // TIKA-1035
+    public void testBookmarks() throws Exception {
+        String xml = getXML("testPDF_bookmarks.pdf").xml;
+        int i = xml.indexOf("Denmark bookmark is here");
+        int j = xml.indexOf("</body>");
+        assertTrue(i != -1);
+        assertTrue(j != -1);
+        assertTrue(i < j);
     }
 }

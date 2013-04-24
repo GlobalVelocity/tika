@@ -82,6 +82,8 @@ public class TestContainerAwareDetector extends TestCase {
         assertTypeByData("testWORKSSpreadsheet7.0.xlr", "application/x-tika-msworks-spreadsheet");
         assertTypeByData("testPROJECT2003.mpp", "application/vnd.ms-project");
         assertTypeByData("testPROJECT2007.mpp", "application/vnd.ms-project");
+        // Excel95 can be detected by not parsed
+        assertTypeByData("testEXCEL_95.xls", "application/vnd.ms-excel");
 
         // Try some ones that POI doesn't handle, that are still OLE2 based
         assertTypeByData("testCOREL.shw", "application/x-corelpresentations");
@@ -163,6 +165,12 @@ public class TestContainerAwareDetector extends TestCase {
        assertTypeByData("testEPUB.epub", "application/epub+zip");
        assertTypeByData("testiBooks.ibooks", "application/x-ibooks+zip");
     }
+    
+    public void testDetectLotusNotesEml() throws Exception {
+        // Lotus .eml files aren't guaranteed to have any of the magic 
+        // matches as the first line, but should have X-Notes-Item and Message-ID
+        assertTypeByData("testLotusEml.eml", "message/rfc822");
+     }
 
     public void testDetectODF() throws Exception {
         assertTypeByData("testODFwithOOo3.odt", "application/vnd.oasis.opendocument.text");

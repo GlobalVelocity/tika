@@ -143,7 +143,6 @@ public class PowerPointParserTest extends TikaTest {
     }
 
     // TODO: once we fix TIKA-712, re-enable this
-    /*
     public void testMasterText() throws Exception {
         ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
@@ -162,10 +161,8 @@ public class PowerPointParserTest extends TikaTest {
         // Make sure boilerplate text didn't come through:
         assertEquals(-1, content.indexOf("Click to edit Master"));
     }
-    */
 
     // TODO: once we fix TIKA-712, re-enable this
-    /*
     public void testMasterText2() throws Exception {
         ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
@@ -184,7 +181,6 @@ public class PowerPointParserTest extends TikaTest {
         // Make sure boilerplate text didn't come through:
         assertEquals(-1, content.indexOf("Click to edit Master"));
     }
-    */
 
     /**
      * Ensures that custom OLE2 (HPSF) properties are extracted
@@ -206,8 +202,11 @@ public class PowerPointParserTest extends TikaTest {
        assertEquals("application/vnd.ms-powerpoint", metadata.get(Metadata.CONTENT_TYPE));
        assertEquals("JOUVIN ETIENNE",       metadata.get(TikaCoreProperties.CREATOR));
        assertEquals("EJ04325S",             metadata.get(TikaCoreProperties.MODIFIER));
+       assertEquals("EJ04325S",             metadata.get(Metadata.LAST_AUTHOR));
        assertEquals("2011-08-22T13:32:58Z", metadata.get(TikaCoreProperties.MODIFIED));
+       assertEquals("2011-08-22T13:32:58Z", metadata.get(Metadata.DATE));
        assertEquals("2011-08-22T13:30:53Z", metadata.get(TikaCoreProperties.CREATED));
+       assertEquals("2011-08-22T13:30:53Z", metadata.get(Metadata.CREATION_DATE));
        assertEquals("1",                    metadata.get(Office.SLIDE_COUNT));
        assertEquals("3",                    metadata.get(Office.WORD_COUNT));
        assertEquals("Test extraction properties pptx", metadata.get(TikaCoreProperties.TITLE));
@@ -216,5 +215,12 @@ public class PowerPointParserTest extends TikaTest {
        assertEquals("MyStringValue",        metadata.get("custom:MyCustomString"));
        assertEquals("2010-12-30T22:00:00Z", metadata.get("custom:MyCustomDate"));
        assertEquals("2010-12-29T22:00:00Z", metadata.get("custom:myCustomSecondDate"));
+    }
+
+    // TIKA-1025
+    public void testEmbeddedPlacedholder() throws Exception {
+       XMLResult result = getXML("testPPT_embedded2.ppt");
+       assertContains("<div class=\"embedded\" id=\"1\"/>", result.xml);
+       assertContains("<div class=\"embedded\" id=\"14\"/>", result.xml);
     }
 }

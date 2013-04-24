@@ -84,6 +84,7 @@ import org.apache.tika.parser.ParserDecorator;
 import org.apache.tika.parser.PasswordProvider;
 import org.apache.tika.parser.html.BoilerpipeContentHandler;
 import org.apache.tika.sax.BodyContentHandler;
+import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.xmp.XMPMetadata;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
@@ -166,7 +167,8 @@ public class TikaCLI {
         @Override
         protected ContentHandler getContentHandler(
                 OutputStream output, Metadata metadata) throws Exception {
-            return getTransformerHandler(output, "html", encoding, prettyPrint);
+            return new ExpandedTitleContentHandler(getTransformerHandler(output, "html", encoding, prettyPrint));
+
         }
     };
 
@@ -704,13 +706,25 @@ public class TikaCLI {
                 }
             }
 
-            File outputFile = new File(extractDir, name);
-            if (outputFile.exists()) {
-                System.err.println("File '"+name+"' already exists; skipping");
-                return;
-            }
+           String relID = metadata.get(Metadata.EMBEDDED_RELATIONSHIP_ID);
+            if (relID != null && !name.startsWith(relID)) {
+                name = relID + "_" + name;
+           }
 
-            System.out.println("Extracting '"+name+"' ("+contentType+")");
+            File outputFile = new File(extractDir, name);
+
+            if (outputFile.exists()) {
+              System.err.println("File '"+name+"' already exists; skipping");
+              return;
+             }
+
+            File parent = outputFile.getParentFile();
+            if (!parent.exists()) {
+                if (!parent.mkdirs()) {
+                    throw new IOException("unable to create directory \"" + parent + "\"");
+                }
+            }
+            System.out.println("Extracting '"+name+"' ("+contentType+") to " + outputFile);
 
             FileOutputStream os = new FileOutputStream(outputFile);
 
@@ -824,8 +838,10 @@ public class TikaCLI {
         
         public void outputMetadata(String[] names) {
            for (String name : names) {
-              writer.println(name + ": " + metadata.get(name));
-          }
+              for(String value : metadata.getValues(name)) {
+                 writer.println(name + ": " + value);
+              }
+           }
         }
         
         public boolean metOutput(){
@@ -835,8 +851,6 @@ public class TikaCLI {
     }
 
     /**
-     * Uses GSON to do the JsonExtractor$ escaping, but does
-     *  the general JsonExtractor$ glueing ourselves.
      * Outputs the Tika metadata as XMP using the Tika XMP module
      */
     private class NoDocumentXMPMetaHandler extends DefaultHandler

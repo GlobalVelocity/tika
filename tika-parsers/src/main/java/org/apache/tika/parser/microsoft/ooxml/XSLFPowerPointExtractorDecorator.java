@@ -19,6 +19,7 @@ package org.apache.tika.parser.microsoft.ooxml;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.xml.namespace.QName;
 
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.openxml4j.opc.PackagePart;
@@ -28,17 +29,16 @@ import org.apache.poi.openxml4j.opc.PackagingURIHelper;
 import org.apache.poi.openxml4j.opc.TargetMode;
 import org.apache.poi.xslf.XSLFSlideShow;
 import org.apache.poi.xslf.extractor.XSLFPowerPointExtractor;
-import org.apache.poi.xslf.usermodel.DrawingParagraph;
 import org.apache.poi.xslf.usermodel.Placeholder;
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
 import org.apache.poi.xslf.usermodel.XSLFComments;
-import org.apache.poi.xslf.usermodel.XSLFCommonSlideData;
+import org.apache.poi.xslf.usermodel.XSLFGraphicFrame;
 import org.apache.poi.xslf.usermodel.XSLFGroupShape;
+import org.apache.poi.xslf.usermodel.XSLFPictureShape;
 import org.apache.poi.xslf.usermodel.XSLFRelation;
 import org.apache.poi.xslf.usermodel.XSLFShape;
 import org.apache.poi.xslf.usermodel.XSLFSheet;
 import org.apache.poi.xslf.usermodel.XSLFSlide;
-import org.apache.poi.xslf.usermodel.XSLFSlideMaster;
 import org.apache.poi.xslf.usermodel.XSLFTable;
 import org.apache.poi.xslf.usermodel.XSLFTableCell;
 import org.apache.poi.xslf.usermodel.XSLFTableRow;
@@ -47,11 +47,12 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.XHTMLContentHandler;
 import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlObject;
 import org.openxmlformats.schemas.presentationml.x2006.main.CTComment;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTCommentList;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTNotesSlide;
+import org.openxmlformats.schemas.presentationml.x2006.main.CTPicture;
 import org.openxmlformats.schemas.presentationml.x2006.main.CTSlideIdListEntry;
 import org.xml.sax.SAXException;
+import org.xml.sax.helpers.AttributesImpl;
 
 public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
     public XSLFPowerPointExtractorDecorator(ParseContext context, XSLFPowerPointExtractor extractor) {
@@ -66,25 +67,33 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
 
         XSLFSlide[] slides = slideShow.getSlides();
         for (XSLFSlide slide : slides) {
+            String slideDesc;
+            if (slide.getPackagePart() != null && slide.getPackagePart().getPartName() != null) {
+              slideDesc = getJustFileName(slide.getPackagePart().getPartName().toString());
+              slideDesc += "_";
+            } else {
+              slideDesc = null;
+            }
+
             // slide
-            extractContent(slide.getShapes(), false, xhtml);
+            extractContent(slide.getShapes(), false, xhtml, slideDesc);
 
             // slide layout which is the master sheet for this slide
             XSLFSheet slideLayout = slide.getMasterSheet();
-            extractContent(slideLayout.getShapes(), true, xhtml);
+            extractContent(slideLayout.getShapes(), true, xhtml, null);
 
             // slide master which is the master sheet for all text layouts
             XSLFSheet slideMaster = slideLayout.getMasterSheet();
-            extractContent(slideMaster.getShapes(), true, xhtml);
+            extractContent(slideMaster.getShapes(), true, xhtml, null);
 
             // notes (if present)
             XSLFSheet slideNotes = slide.getNotes();
             if (slideNotes != null) {
-                extractContent(slideNotes.getShapes(), false, xhtml);
+                extractContent(slideNotes.getShapes(), false, xhtml, slideDesc);
 
                 // master sheet for this notes
                 XSLFSheet notesMaster = slideNotes.getMasterSheet();
-                extractContent(notesMaster.getShapes(), true, xhtml);
+                extractContent(notesMaster.getShapes(), true, xhtml, null);
             }
 
             // comments (if present)
@@ -97,7 +106,7 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
         }
     }
 
-    private void extractContent(XSLFShape[] shapes, boolean skipPlaceholders, XHTMLContentHandler xhtml)
+    private void extractContent(XSLFShape[] shapes, boolean skipPlaceholders, XHTMLContentHandler xhtml, String slideDesc)
             throws SAXException {
         for (XSLFShape sh : shapes) {
             if (sh instanceof XSLFTextShape) {
@@ -110,12 +119,49 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
             } else if (sh instanceof XSLFGroupShape){
                 // recurse into groups of shapes
                 XSLFGroupShape group = (XSLFGroupShape)sh;
-                extractContent(group.getShapes(), skipPlaceholders, xhtml);
+                extractContent(group.getShapes(), skipPlaceholders, xhtml, slideDesc);
             } else if (sh instanceof XSLFTable) {
                 XSLFTable tbl = (XSLFTable)sh;
                 for(XSLFTableRow row : tbl){
                     List<XSLFTableCell> cells = row.getCells();
-                    extractContent(cells.toArray(new XSLFTableCell[cells.size()]), skipPlaceholders, xhtml);
+                    extractContent(cells.toArray(new XSLFTableCell[cells.size()]), skipPlaceholders, xhtml, slideDesc);
+                }
+            } else if (sh instanceof XSLFGraphicFrame) {
+                XSLFGraphicFrame frame = (XSLFGraphicFrame) sh;
+                XmlObject[] sp = frame.getXmlObject().selectPath(
+                                   "declare namespace p='http://schemas.openxmlformats.org/presentationml/2006/main' .//*/p:oleObj");
+                if (sp != null) {
+                    for(XmlObject emb : sp) {
+                        XmlObject relIDAtt = emb.selectAttribute(new QName("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id"));
+                        if (relIDAtt != null) {
+                            String relID = relIDAtt.getDomNode().getNodeValue();
+                            if (slideDesc != null) {
+                              relID = slideDesc + relID;
+                            }
+                            AttributesImpl attributes = new AttributesImpl();
+                            attributes.addAttribute("", "class", "class", "CDATA", "embedded");
+                            attributes.addAttribute("", "id", "id", "CDATA", relID);
+                            xhtml.startElement("div", attributes);
+                            xhtml.endElement("div");
+                        }
+                    }
+                }
+            } else if (sh instanceof XSLFPictureShape) {
+                if (!skipPlaceholders && (sh.getXmlObject() instanceof CTPicture)) {
+                    CTPicture ctPic = ((CTPicture) sh.getXmlObject());
+                    if (ctPic.getBlipFill() != null && ctPic.getBlipFill().getBlip() != null) {
+                        String relID = ctPic.getBlipFill().getBlip().getEmbed();
+                        if (relID != null) {
+                            if (slideDesc != null) {
+                              relID = slideDesc + relID;
+                            }
+                            AttributesImpl attributes = new AttributesImpl();
+                            attributes.addAttribute("", "class", "class", "CDATA", "embedded");
+                            attributes.addAttribute("", "id", "id", "CDATA", relID);
+                            xhtml.startElement("div", attributes);
+                            xhtml.endElement("div");
+                        }
+                    }
                 }
             }
         }
@@ -151,7 +197,7 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
           // If it has drawings, return those too
           try {
              for(PackageRelationship rel : slidePart.getRelationshipsByType(XSLFRelation.VML_DRAWING.getRelation())) {
-                if(rel.getTargetMode() == TargetMode.INTERNAL) {
+               if(rel.getTargetMode() == TargetMode.INTERNAL) {
                    PackagePartName relName = PackagingURIHelper.createPartName(rel.getTargetURI());
                    parts.add( rel.getPackage().getPart(relName) );
                 }

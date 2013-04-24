@@ -738,4 +738,74 @@ public class HtmlParserTest extends TestCase {
         assertNotNull(content);
     }
 
+    /**
+     * Test case for TIKA-869
+     * IdentityHtmlMapper needs to lower-case tag names.
+     * 
+     * @see <a href="https://issues.apache.org/jira/browse/TIKA-869">TIKA-869</a>
+     */
+    public void testIdentityMapper() throws Exception {
+        final String html = "<html><head><title>Title</title></head>" +
+                "<body></body></html>";
+        Metadata metadata = new Metadata();
+        ParseContext parseContext = new ParseContext();
+        parseContext.set(HtmlMapper.class, IdentityHtmlMapper.INSTANCE);
+
+        StringWriter sw = new StringWriter();
+
+        new HtmlParser().parse (
+                new ByteArrayInputStream(html.getBytes("UTF-8")),
+                makeHtmlTransformer(sw),  metadata, parseContext);
+        
+        String result = sw.toString();
+        // Make sure we don't get <body><BODY/></body>
+        assertTrue(Pattern.matches("(?s).*<body/>.*$", result));
+    }
+    
+    /**
+     * Test case for TIKA-889
+     * XHTMLContentHandler wont emit newline when html element matches ENDLINE set.
+     * 
+     * @see <a href="https://issues.apache.org/jira/browse/TIKA-889">TIKA-889</a>
+     */
+    public void testNewlineAndIndent() throws Exception {
+        final String html = "<html><head><title>Title</title></head>" +
+                "<body><ul><li>one</li></ul></body></html>";
+
+        BodyContentHandler handler = new BodyContentHandler();
+        new HtmlParser().parse(
+                new ByteArrayInputStream(html.getBytes("UTF-8")),
+                handler,  new Metadata(), new ParseContext());
+        
+        // Make sure we get <tab>, "one", newline, newline
+        String result = handler.toString();
+        
+        assertTrue(Pattern.matches("\tone\n\n", result));
+    }
+
+    /**
+     * Test case for TIKA-983:  HTML parser should add Open Graph meta tag data to Metadata returned by parser
+     * 
+     * @see <a href="https://issues.apache.org/jira/browse/TIKA-983">TIKA-983</a>
+     */
+    public void testOpenGraphMetadata() throws Exception {
+        String test1 =
+            "<html><head><meta property=\"og:description\""
+            + " content=\"some description\" />"
+            + "<title>hello</title>"
+            + "</head><body></body></html>";
+        Metadata metadata = new Metadata();
+        new HtmlParser().parse (
+                new ByteArrayInputStream(test1.getBytes("ISO-8859-1")),
+                new BodyContentHandler(),  metadata, new ParseContext());
+        assertEquals("some description", metadata.get("og:description"));
+
+    }
+
+    // TIKA-1011
+    public void testUserDefinedCharset() throws Exception {
+        String content = new Tika().parseToString(
+                HtmlParserTest.class.getResourceAsStream("/test-documents/testUserDefinedCharset.mhtml"), new Metadata());
+        assertNotNull(content);
+    }
 }

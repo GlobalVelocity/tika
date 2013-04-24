@@ -35,7 +35,7 @@ public class TikaCLITest extends TestCase{
     private ByteArrayOutputStream outContent = null;
     private PrintStream stdout = null;
     private URI testDataURI = new File("src/test/resources/test-data/").toURI();
-    private String resorcePrefix = testDataURI.toString();
+    private String resourcePrefix = testDataURI.toString();
 
     public void setUp() throws Exception {
         profile = new File("welsh.ngp");
@@ -50,7 +50,7 @@ public class TikaCLITest extends TestCase{
      * @throws Exception
      */
     public void testCreateProfile() throws Exception {
-        String[] params = {"--create-profile=welsh", "-eUTF-8", resorcePrefix + "welsh_corpus.txt"};
+        String[] params = {"--create-profile=welsh", "-eUTF-8", resourcePrefix + "welsh_corpus.txt"};
         TikaCLI.main(params);
         Assert.assertTrue(profile.exists());
     }
@@ -84,7 +84,7 @@ public class TikaCLITest extends TestCase{
      * @throws Exception
      */
     public void testXMLOutput() throws Exception{
-        String[] params = {"-x", resorcePrefix + "alice.cli.test"};
+        String[] params = {"-x", resourcePrefix + "alice.cli.test"};
         TikaCLI.main(params);
         Assert.assertTrue(outContent.toString().contains("?xml version=\"1.0\" encoding=\"UTF-8\"?"));
     }
@@ -95,9 +95,11 @@ public class TikaCLITest extends TestCase{
      * @throws Exception
      */
     public void testHTMLOutput() throws Exception{
-        String[] params = {"-h", resorcePrefix + "alice.cli.test"};
+        String[] params = {"-h", resourcePrefix + "alice.cli.test"};
         TikaCLI.main(params);
         Assert.assertTrue(outContent.toString().contains("html xmlns=\"http://www.w3.org/1999/xhtml"));
+        Assert.assertTrue("Expanded <title></title> element should be present",
+                outContent.toString().contains("<title></title>"));
     }
 
     /**
@@ -106,7 +108,7 @@ public class TikaCLITest extends TestCase{
      * @throws Exception
      */
     public void testTextOutput() throws Exception{
-        String[] params = {"-t", resorcePrefix + "alice.cli.test"};
+        String[] params = {"-t", resourcePrefix + "alice.cli.test"};
         TikaCLI.main(params);
         Assert.assertTrue(outContent.toString().contains("finished off the cake"));
     }
@@ -116,7 +118,7 @@ public class TikaCLITest extends TestCase{
      * @throws Exception
      */
     public void testMetadataOutput() throws Exception{
-        String[] params = {"-m", resorcePrefix + "alice.cli.test"};
+        String[] params = {"-m", resourcePrefix + "alice.cli.test"};
         TikaCLI.main(params);
         Assert.assertTrue(outContent.toString().contains("text/plain"));
     }
@@ -127,7 +129,7 @@ public class TikaCLITest extends TestCase{
      * @throws Exception
      */
     public void testLanguageOutput() throws Exception{
-        String[] params = {"-l", resorcePrefix + "alice.cli.test"};
+        String[] params = {"-l", resourcePrefix + "alice.cli.test"};
         TikaCLI.main(params);
         Assert.assertTrue(outContent.toString().contains("en"));
     }
@@ -138,7 +140,7 @@ public class TikaCLITest extends TestCase{
      * @throws Exception
      */
     public void testDetectOutput() throws Exception{
-        String[] params = {"-d", resorcePrefix + "alice.cli.test"};
+        String[] params = {"-d", resourcePrefix + "alice.cli.test"};
         TikaCLI.main(params);
         Assert.assertTrue(outContent.toString().contains("text/plain"));
     }
@@ -149,7 +151,7 @@ public class TikaCLITest extends TestCase{
      * @throws Exception
      */
     public void testListMetModels() throws Exception{
-        String[] params = {"--list-met-models", resorcePrefix + "alice.cli.test"};
+        String[] params = {"--list-met-models", resourcePrefix + "alice.cli.test"};
         TikaCLI.main(params);
         Assert.assertTrue(outContent.toString().contains("text/plain"));
     }
@@ -160,7 +162,7 @@ public class TikaCLITest extends TestCase{
      * @throws Exception
      */
     public void testListSupportedTypes() throws Exception{
-        String[] params = {"--list-supported-types", resorcePrefix + "alice.cli.test"};
+        String[] params = {"--list-supported-types", resourcePrefix + "alice.cli.test"};
         TikaCLI.main(params);
         Assert.assertTrue(outContent.toString().contains("supertype: application/octet-stream"));
     }
@@ -181,14 +183,14 @@ public class TikaCLITest extends TestCase{
                           // google guava library has better solution
 
         try {
-            String[] params = {"--extract-dir="+tempFile.getAbsolutePath(),"-z", resorcePrefix + "/coffee.xls"};
-            
+            String[] params = {"--extract-dir="+tempFile.getAbsolutePath(),"-z", resourcePrefix + "/coffee.xls"};
+
             TikaCLI.main(params);
             
             // ChemDraw file
             File expected1 = new File(tempFile, "MBD002B040A.cdx");
             // OLE10Native
-            File expected2 = new File(tempFile, "file5");
+            File expected2 = new File(tempFile, "MBD002B0FA6_file5");
             // Image of one of the embedded resources
             File expected3 = new File(tempFile, "file0.emf");
             
@@ -203,5 +205,29 @@ public class TikaCLITest extends TestCase{
             FileUtils.deleteDirectory(tempFile);
         }
 
+    }
+
+    // TIKA-920
+    public void testMultiValuedMetadata() throws Exception {
+        String[] params = {"-m", resourcePrefix + "testMultipleSheets.numbers"};
+        TikaCLI.main(params);
+        String content = outContent.toString();
+        assertTrue(content.contains("sheetNames: Checking"));
+        assertTrue(content.contains("sheetNames: Secon sheet"));
+        assertTrue(content.contains("sheetNames: Logical Sheet 3"));
+        assertTrue(content.contains("sheetNames: Sheet 4"));
+    }
+
+    // TIKA-1031
+    public void testZipWithSubdirs() throws Exception {
+        String[] params = {"-z", "--extract-dir=target", resourcePrefix + "testWithSubdirs.zip"};
+        new File("subdir/foo.txt").delete();
+        new File("subdir").delete();
+        TikaCLI.main(params);
+        String content = outContent.toString();
+        assertTrue(content.contains("Extracting 'subdir/foo.txt'"));
+        // clean up. TODO: These should be in target.
+        new File("target/subdir/foo.txt").delete();
+        new File("target/subdir").delete();
     }
 }

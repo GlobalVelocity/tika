@@ -66,7 +66,7 @@ public class Mp3ParserTest extends TestCase {
         
         assertEquals("MPEG 3 Layer III Version 1", metadata.get("version"));
         assertEquals("44100", metadata.get("samplerate"));
-        assertEquals("2", metadata.get("channels"));
+        assertEquals("1", metadata.get("channels"));
     }
 
     /**
@@ -104,7 +104,7 @@ public class Mp3ParserTest extends TestCase {
         // Check un-typed audio properties
         assertEquals("MPEG 3 Layer III Version 1", metadata.get("version"));
         assertEquals("44100", metadata.get("samplerate"));
-        assertEquals("2", metadata.get("channels"));
+        assertEquals("1", metadata.get("channels"));
         
         // Check XMPDM-typed audio properties
         assertEquals("Test Album", metadata.get(XMPDM.ALBUM));
@@ -116,7 +116,7 @@ public class Mp3ParserTest extends TestCase {
         assertEquals("1", metadata.get(XMPDM.TRACK_NUMBER));
         
         assertEquals("44100", metadata.get(XMPDM.AUDIO_SAMPLE_RATE));
-        assertEquals("Stereo", metadata.get(XMPDM.AUDIO_CHANNEL_TYPE));
+        assertEquals("Mono", metadata.get(XMPDM.AUDIO_CHANNEL_TYPE));
         assertEquals("MP3", metadata.get(XMPDM.AUDIO_COMPRESSOR));
     }
 
@@ -152,7 +152,7 @@ public class Mp3ParserTest extends TestCase {
         
         assertEquals("MPEG 3 Layer III Version 1", metadata.get("version"));
         assertEquals("44100", metadata.get("samplerate"));
-        assertEquals("2", metadata.get("channels"));
+        assertEquals("1", metadata.get("channels"));
     }
 
     /**
@@ -187,7 +187,7 @@ public class Mp3ParserTest extends TestCase {
         
         assertEquals("MPEG 3 Layer III Version 1", metadata.get("version"));
         assertEquals("44100", metadata.get("samplerate"));
-        assertEquals("2", metadata.get("channels"));
+        assertEquals("1", metadata.get("channels"));
     }
     
     /**
@@ -221,7 +221,7 @@ public class Mp3ParserTest extends TestCase {
        
        assertEquals("MPEG 3 Layer III Version 1", metadata.get("version"));
        assertEquals("44100", metadata.get("samplerate"));
-       assertEquals("2", metadata.get("channels"));
+       assertEquals("1", metadata.get("channels"));
    }
     
     
@@ -347,7 +347,7 @@ public class Mp3ParserTest extends TestCase {
            stream.close();
        }
 
-       // Check we coud get the headers from the start
+       // Check we could get the headers from the start
        assertEquals("audio/mpeg", metadata.get(Metadata.CONTENT_TYPE));
        assertEquals("Girl you have no faith in medicine", metadata.get(TikaCoreProperties.TITLE));
        assertEquals("The White Stripes", metadata.get(TikaCoreProperties.CREATOR));
@@ -363,5 +363,23 @@ public class Mp3ParserTest extends TestCase {
        assertEquals(null, metadata.get("version"));
        assertEquals(null, metadata.get("samplerate"));
        assertEquals(null, metadata.get("channels"));
+    }
+
+    // TIKA-1024
+    public void testNakedUTF16BOM() throws Exception {
+       Parser parser = new AutoDetectParser(); // Should auto-detect!
+       ContentHandler handler = new BodyContentHandler();
+       Metadata metadata = new Metadata();
+
+       InputStream stream = Mp3ParserTest.class.getResourceAsStream(
+               "/test-documents/testNakedUTF16BOM.mp3");
+       
+       try {
+           parser.parse(stream, handler, metadata, new ParseContext());
+       } finally {
+           stream.close();
+       }
+       assertEquals("audio/mpeg", metadata.get(Metadata.CONTENT_TYPE));
+       assertEquals("", metadata.get(XMPDM.GENRE));
     }
 }

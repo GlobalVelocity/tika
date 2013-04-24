@@ -16,6 +16,9 @@
  */
 package org.apache.tika.parser.microsoft;
 
+import java.io.IOException;
+import java.util.HashSet;
+
 import org.apache.poi.hslf.HSLFSlideShow;
 import org.apache.poi.hslf.model.*;
 import org.apache.poi.hslf.usermodel.ObjectData;
@@ -28,9 +31,7 @@ import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.SAXException;
-
-import java.io.IOException;
-import java.util.HashSet;
+import org.xml.sax.helpers.AttributesImpl;
 
 public class HSLFExtractor extends AbstractPOIFSExtractor {
    public HSLFExtractor(ParseContext context) {
@@ -68,20 +69,18 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
 
          // Slide master, if present
          // TODO: re-enable this once we fix TIKA-712
-         /*
          MasterSheet master = slide.getMasterSheet();
          if(master != null) {
             xhtml.startElement("p", "class", "slide-master-content");
-            textRunsToText(xhtml, master.getTextRuns() );
+            textRunsToText(xhtml, master.getTextRuns(), true );
             xhtml.endElement("p");
          }
-         */
 
          // Slide text
          {
             xhtml.startElement("p", "class", "slide-content");
 
-            textRunsToText(xhtml, slide.getTextRuns() );
+            textRunsToText(xhtml, slide.getTextRuns(), false );
 
             xhtml.endElement("p");
          }
@@ -149,7 +148,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
          }
 
          // Notes text
-         textRunsToText(xhtml, notes.getTextRuns());
+         textRunsToText(xhtml, notes.getTextRuns(), false);
 
          // Repeat the notes footer, if set
          if (hf != null && hf.isFooterVisible() && hf.getFooterText() != null) {
@@ -164,16 +163,20 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
       xhtml.endElement("div");
    }
 
-   private void textRunsToText(XHTMLContentHandler xhtml, TextRun[] runs) throws SAXException {
+   private void textRunsToText(XHTMLContentHandler xhtml, TextRun[] runs, boolean isMaster) throws SAXException {
       if (runs==null) {
          return;
       }
 
       for (TextRun run : runs) {
          if (run != null) {
-            xhtml.characters( run.getText() );
-            xhtml.startElement("br");
-            xhtml.endElement("br");
+           // Avoid boiler-plate text on the master slide (0
+           // = TextHeaderAtom.TITLE_TYPE, 1 = TextHeaderAtom.BODY_TYPE):
+           if (!isMaster || (run.getRunType() != 0 && run.getRunType() != 1)) {
+               xhtml.characters(run.getText());
+               xhtml.startElement("br");
+               xhtml.endElement("br");
+           }
          }
       }
    }
@@ -202,7 +205,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
             }
 
             handleEmbeddedResource(
-                  TikaInputStream.get(pic.getData()), null,
+                  TikaInputStream.get(pic.getData()), null, null,
                   mediaType, xhtml, false);
         }
     }
@@ -221,27 +224,39 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
       for( Shape shape : shapes ) {
          if( shape instanceof OLEShape ) {
             OLEShape oleShape = (OLEShape)shape;
-            
+            ObjectData data = null;
             try {
-               ObjectData data = oleShape.getObjectData();
-
-               if(data != null) {
-                  TikaInputStream stream =
-                     TikaInputStream.get(data.getData());
-                  try {
-                     String mediaType = null;
-                     if ("Excel.Chart.8".equals(oleShape.getProgID())) {
-                        mediaType = "application/vnd.ms-excel";
-                     }
-                     handleEmbeddedResource(
-                           stream, Integer.toString(oleShape.getObjectID()),
-                           mediaType, xhtml, false);
-                  } finally {
-                     stream.close();
-                  }
-               }
+                data = oleShape.getObjectData();
             } catch( NullPointerException e ) { 
-               /* getObjectData throws NPE some times. */
+                /* getObjectData throws NPE some times. */
+            }
+ 
+            if (data != null) {
+               String objID = Integer.toString(oleShape.getObjectID());
+
+               // Embedded Object: add a <div
+               // class="embedded" id="X"/> so consumer can see where
+               // in the main text each embedded document
+               // occurred:
+               AttributesImpl attributes = new AttributesImpl();
+               attributes.addAttribute("", "class", "class", "CDATA", "embedded");
+               attributes.addAttribute("", "id", "id", "CDATA", objID);
+               xhtml.startElement("div", attributes);
+               xhtml.endElement("div");
+
+               TikaInputStream stream =
+                    TikaInputStream.get(data.getData());
+               try {
+                  String mediaType = null;
+                  if ("Excel.Chart.8".equals(oleShape.getProgID())) {
+                     mediaType = "application/vnd.ms-excel";
+                  }
+                  handleEmbeddedResource(
+                        stream, objID, objID,
+                        mediaType, xhtml, false);
+               } finally {
+                  stream.close();
+               }
             }
          }
       }

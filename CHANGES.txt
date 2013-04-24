@@ -1,3 +1,71 @@
+Release 1.3 - 01/19/2013
+
+  * Mimetype definitions added for more common programming languages,
+    including common extensions, but not magic patterns. (TIKA-1055)
+
+  * MS Word: When a Word (.doc) document contains embedded files or
+    links to external documents, Tika now places a <div
+    class="embedded" id="_XXX"/> placeholder into the XHTML so you can
+    see where in the main text the embedded document occurred
+    (TIKA-956, TIKA-1019).  Embedded Wordpad/RTF documents are now
+    recognized (TIKA-982).
+
+  * PDF: Text from pop-up annotations is now extracted (TIKA-981).
+    Text from bookmarks is now extracted (TIKA-1035).
+
+  * PKCS7: Detached signatures no longer through NullPointerException
+    (TIKA-986).
+
+  * iWork: The chart name for charts embedded in numbers documents is
+    now extracted (TIKA-918).
+
+  * CLI: TikaCLI -m now handles multi-valued metadata keys correctly
+    (previously it only printed the first value).  (TIKA-920)
+
+  * MS Word (.docx): When a Word (.docx) document contains embedded
+    files, Tika now places a <div class="embedded" id="XXX"/> into the
+    XHTML so you can see where in the main text the embedded document
+    occurred.  The id (rId) is included in the Metadata of each
+    embedded document as the new Metadata.EMBEDDED_RELATIONSHIP_ID
+    key, and TikaCLI prepends the rId (if present) onto the filename
+    it extracts (TIKA-989).  Fixed NullPointerException when style is
+    null (TIKA-1006).  Text inside text boxes is now extracted
+    (TIKA-1005).
+
+  * RTF: Page, word, character count and creation date metadata are
+    now extracted for RTF documents (TIKA-999).
+
+  * MS PowerPoint (.pptx): When a PowerPoint (.pptx) document contains
+    embedded files, Tika now places a <div class="embedded" id="XXX"/> into the
+    XHTML so you can see where in the main text the embedded document
+    occurred.  The id (rId) is included in the Metadata of each
+    embedded document as the new Metadata.EMBEDDED_RELATIONSHIP_ID
+    key, and TikaCLI prepends the rId (if present) onto the filename
+    it extracts (TIKA-997, TIKA-1032).
+
+  * MS PowerPoint (.ppt): When a PowerPoint (.ppt) document contains
+    embedded files, Tika now places a <div class="embedded" id="XXX"/> into the
+    XHTML so you can see where in the main text the embedded document
+    occurred (TIKA-1025).  Text from the master slide is now extracted
+    (TIKA-712).
+
+  * MHTML: fixed Null charset name exception when a mime part has an
+    unrecognized charset (TIKA-1011).
+
+  * MP3: if an ID3 tag was encoded in UTF-16 with only the BOM then on
+    certain JVMs this would incorrectly extract the BOM as the tag's
+    value (TIKA-1024).
+
+  * ZIP: placeholders (<div class="embedded" id="<entry name>"/>) are
+    now left in the XHTML so you can see where each archive member
+    appears (TIKA-1036). TikaCLI would hit FileNotFoundException when
+    extracting files that were under sub-directories from a ZIP
+    archive, because it failed to create the parent directories first
+    (TIKA-1031).
+
+  * XML: a space character is now added before each element
+    (TIKA-1048)
+
 Release 1.2 - 07/10/2012
 ---------------------------------
 

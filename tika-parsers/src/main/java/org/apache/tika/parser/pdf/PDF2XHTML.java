@@ -21,12 +21,14 @@ import java.io.Writer;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.util.PDFTextStripper;
 import org.apache.pdfbox.pdmodel.interactive.action.type.PDAction;
 import org.apache.pdfbox.pdmodel.interactive.action.type.PDActionURI;
-import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotation;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationMarkup;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDDocumentOutline;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineItem;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineNode;
+import org.apache.pdfbox.util.PDFTextStripper;
 import org.apache.pdfbox.util.TextPosition;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.IOExceptionWithCause;
@@ -62,10 +64,12 @@ class PDF2XHTML extends PDFTextStripper {
             throws SAXException, TikaException {
         try {
             // Extract text using a dummy Writer as we override the
-            // key methods to output to the given content handler.
-            new PDF2XHTML(handler, metadata,
-                          extractAnnotationText, enableAutoSpace,
-                          suppressDuplicateOverlappingText, sortByPosition).writeText(document, new Writer() {
+            // key methods to output to the given content
+            // handler.
+            PDF2XHTML pdf2XHTML = new PDF2XHTML(handler, metadata,
+                                                extractAnnotationText, enableAutoSpace,
+                                                suppressDuplicateOverlappingText, sortByPosition);
+            pdf2XHTML.writeText(document, new Writer() {
                 @Override
                 public void write(char[] cbuf, int off, int len) {
                 }
@@ -76,6 +80,7 @@ class PDF2XHTML extends PDFTextStripper {
                 public void close() {
                 }
             });
+
         } catch (IOException e) {
             if (e.getCause() instanceof SAXException) {
                 throw (SAXException) e.getCause();
@@ -107,6 +112,29 @@ class PDF2XHTML extends PDFTextStripper {
         setSuppressDuplicateOverlappingText(suppressDuplicateOverlappingText);
     }
 
+    void extractBookmarkText() throws SAXException {
+        PDDocumentOutline outline = document.getDocumentCatalog().getDocumentOutline();
+        if (outline != null) {
+            extractBookmarkText(outline);
+        }
+    }
+
+    void extractBookmarkText(PDOutlineNode bookmark) throws SAXException {
+        PDOutlineItem current = bookmark.getFirstChild();
+        if (current != null) {
+            handler.startElement("ul");
+            while (current != null) {
+                handler.startElement("li");
+                handler.characters(current.getTitle());
+                handler.endElement("li");
+                // Recurse:
+                extractBookmarkText(current);
+                current = current.getNextSibling();
+            }
+            handler.endElement("ul");
+        }
+    }
+
     @Override
     protected void startDocument(PDDocument pdf) throws IOException {
         try {
@@ -119,6 +147,8 @@ class PDF2XHTML extends PDFTextStripper {
     @Override
     protected void endDocument(PDDocument pdf) throws IOException {
         try {
+            // Extract text for any bookmarks:
+            extractBookmarkText();
             handler.endDocument();
         } catch (SAXException e) {
             throw new IOExceptionWithCause("Unable to end a document", e);
@@ -159,12 +189,11 @@ class PDF2XHTML extends PDFTextStripper {
                              }
                         }
                     }
-                
-                    if ((o instanceof PDAnnotation) && PDAnnotationMarkup.SUB_TYPE_FREETEXT.equals(((PDAnnotation) o).getSubtype())) {
-                        // It's a text annotation:
+
+                    if (o instanceof PDAnnotationMarkup) {
                         PDAnnotationMarkup annot = (PDAnnotationMarkup) o;
                         String title = annot.getTitlePopup();
-                        String subject = annot.getTitlePopup();
+                        String subject = annot.getSubject();
                         String contents = annot.getContents();
                         // TODO: maybe also annot.getRichContents()?
                         if (title != null || subject != null || contents != null) {
@@ -263,11 +292,10 @@ class PDF2XHTML extends PDFTextStripper {
     @Override
     protected void writeLineSeparator() throws IOException {
         try {
-            handler.characters("\n");
+            handler.newline();
         } catch (SAXException e) {
             throw new IOExceptionWithCause(
                     "Unable to write a newline character", e);
         }
     }
-
 }

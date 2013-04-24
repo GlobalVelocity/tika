@@ -19,6 +19,7 @@ package org.apache.tika.parser.microsoft.ooxml;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.xml.namespace.QName;
 
 import org.apache.poi.openxml4j.opc.PackagePart;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
@@ -41,12 +42,16 @@ import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.parser.microsoft.WordExtractor;
 import org.apache.tika.parser.microsoft.WordExtractor.TagAndStyle;
+import org.apache.tika.parser.microsoft.WordExtractor;
 import org.apache.tika.sax.XHTMLContentHandler;
+import org.apache.xmlbeans.XmlCursor;
 import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlObject;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBookmark;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTObject;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTP;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
@@ -119,18 +124,55 @@ public class XWPFWordExtractorDecorator extends AbstractOOXMLExtractor {
           XWPFStyle style = styles.getStyle(
                 paragraph.getStyleID()
           );
-          
-          TagAndStyle tas = WordExtractor.buildParagraphTagAndStyle(
-                style.getName(), paragraph.getPartType() == BodyType.TABLECELL
-          );
-          tag = tas.getTag();
-          styleClass = tas.getStyleClass();
+
+          if (style != null && style.getName() != null) {
+             TagAndStyle tas = WordExtractor.buildParagraphTagAndStyle(
+                   style.getName(), paragraph.getPartType() == BodyType.TABLECELL
+             );
+             tag = tas.getTag();
+             styleClass = tas.getStyleClass();
+          }
        }
        
        if(styleClass == null) {
           xhtml.startElement(tag);
        } else {
           xhtml.startElement(tag, "class", styleClass);
+       }
+
+       // Output placeholder for any embedded docs:
+
+       // TODO: replace w/ XPath/XQuery:
+       for(XWPFRun run : paragraph.getRuns()) {
+          XmlCursor c = run.getCTR().newCursor();
+          c.selectPath("./*");
+          while (c.toNextSelection()) {
+             XmlObject o = c.getObject();
+             if (o instanceof CTObject) {
+                XmlCursor c2 = o.newCursor();
+                c2.selectPath("./*");
+                while (c2.toNextSelection()) {
+                   XmlObject o2 = c2.getObject();
+
+                   XmlObject embedAtt = o2.selectAttribute(new QName("Type"));
+                   if (embedAtt != null && embedAtt.getDomNode().getNodeValue().equals("Embed")) {
+                      // Type is "Embed"
+                      XmlObject relIDAtt = o2.selectAttribute(new QName("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id"));
+                      if (relIDAtt != null) {
+                         String relID = relIDAtt.getDomNode().getNodeValue();
+                         AttributesImpl attributes = new AttributesImpl();
+                         attributes.addAttribute("", "class", "class", "CDATA", "embedded");
+                         attributes.addAttribute("", "id", "id", "CDATA", relID);
+                         xhtml.startElement("div", attributes);
+                         xhtml.endElement("div");
+                      }
+                   }
+                }
+                c2.dispose();
+             }
+          }
+
+          c.dispose();
        }
        
        // Attach bookmarks for the paragraph
@@ -225,6 +267,11 @@ public class XWPFWordExtractorDecorator extends AbstractOOXMLExtractor {
        String footnameText = paragraph.getFootnoteText();
        if(footnameText != null && footnameText.length() > 0) {
           xhtml.characters(footnameText + "\n");
+       }
+
+       // Also extract any paragraphs embedded in text boxes:
+       for (XmlObject embeddedParagraph : paragraph.getCTP().selectPath("declare namespace w='http://schemas.openxmlformats.org/wordprocessingml/2006/main' declare namespace wps='http://schemas.microsoft.com/office/word/2010/wordprocessingShape' .//*/wps:txbx/w:txbxContent/w:p")) {
+           extractParagraph(new XWPFParagraph(CTP.Factory.parse(embeddedParagraph.xmlText()), paragraph.getBody()), xhtml);
        }
 
        // Finish this paragraph

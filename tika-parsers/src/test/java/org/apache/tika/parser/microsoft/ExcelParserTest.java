@@ -53,9 +53,11 @@ public class ExcelParserTest extends TestCase {
             
             // Mon Oct 01 17:13:56 BST 2007
             assertEquals("2007-10-01T16:13:56Z", metadata.get(TikaCoreProperties.CREATED));
+            assertEquals("2007-10-01T16:13:56Z", metadata.get(Metadata.CREATION_DATE));
             
             // Mon Oct 01 17:31:43 BST 2007
             assertEquals("2007-10-01T16:31:43Z", metadata.get(TikaCoreProperties.MODIFIED));
+            assertEquals("2007-10-01T16:31:43Z", metadata.get(Metadata.DATE));
             
             String content = handler.toString();
             assertTrue(content.contains("Sample Excel Worksheet"));
@@ -250,6 +252,50 @@ public class ExcelParserTest extends TestCase {
        
        // AutoDetectParser doesn't break on it
        input = ExcelParserTest.class.getResourceAsStream("/test-documents/testEXCEL.xlsb");
+
+       try {
+          ContentHandler handler = new BodyContentHandler(-1);
+          ParseContext context = new ParseContext();
+          context.set(Locale.class, Locale.US);
+          parser.parse(input, handler, m, context);
+
+          String content = handler.toString();
+          assertEquals("", content);
+       } finally {
+          input.close();
+       }
+    }
+
+    /**
+     * We don't currently support the old Excel 95 .xls file format, 
+     *  but we shouldn't break on these files either (TIKA-976)  
+     */
+    public void testExcel95() throws Exception {
+       Detector detector = new DefaultDetector();
+       AutoDetectParser parser = new AutoDetectParser();
+       
+       InputStream input = ExcelParserTest.class.getResourceAsStream(
+             "/test-documents/testEXCEL_95.xls");
+       Metadata m = new Metadata();
+       m.add(Metadata.RESOURCE_NAME_KEY, "excel_95.xls");
+       
+       // Should be detected correctly
+       MediaType type = null;
+       try {
+          type = detector.detect(input, m);
+          assertEquals("application/vnd.ms-excel", type.toString());
+       } finally {
+          input.close();
+       }
+       
+       // OfficeParser will claim to handle it
+       assertEquals(true, (new OfficeParser()).getSupportedTypes(new ParseContext()).contains(type));
+       
+       // OOXMLParser won't handle it
+       assertEquals(false, (new OOXMLParser()).getSupportedTypes(new ParseContext()).contains(type));
+       
+       // AutoDetectParser doesn't break on it
+       input = ExcelParserTest.class.getResourceAsStream("/test-documents/testEXCEL_95.xls");
 
        try {
           ContentHandler handler = new BodyContentHandler(-1);

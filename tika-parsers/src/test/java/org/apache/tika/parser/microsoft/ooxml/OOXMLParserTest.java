@@ -36,6 +36,8 @@ import org.apache.tika.metadata.TikaMetadataKeys;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.microsoft.OfficeParser;
+import org.apache.tika.parser.microsoft.WordParserTest;
 import org.apache.tika.sax.BodyContentHandler;
 import org.xml.sax.ContentHandler;
 
@@ -239,7 +241,6 @@ public class OOXMLParserTest extends TikaTest {
        for (int i=0; i<extensions.length; i++) {
           String extension = extensions[i];
           String filename = "testPPT." + extension;
-          String mimetype = mimeTypes[i];
 
           Parser parser = new AutoDetectParser();
           Metadata metadata = new Metadata();
@@ -304,36 +305,6 @@ public class OOXMLParserTest extends TikaTest {
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     metadata.get(Metadata.CONTENT_TYPE));
             assertTrue(handler.toString().contains("snoska"));
-        } finally {
-            input.close();
-        }
-    }
-
-    private static class XMLResult {
-        public final String xml;
-        public final Metadata metadata;
-
-        public XMLResult(String xml, Metadata metadata) {
-            this.xml = xml;
-            this.metadata = metadata;
-      }
-    }
-
-    private XMLResult getXML(String name) throws Exception {
-        StringWriter sw = new StringWriter();
-        SAXTransformerFactory factory = (SAXTransformerFactory)
-                 SAXTransformerFactory.newInstance();
-        TransformerHandler handler = factory.newTransformerHandler();
-        handler.getTransformer().setOutputProperty(OutputKeys.METHOD, "xml");
-        handler.getTransformer().setOutputProperty(OutputKeys.INDENT, "yes");
-        handler.setResult(new StreamResult(sw));
-
-        // Try with a document containing various tables and formattings
-        InputStream input = getTestDocument(name);
-        try {
-            Metadata metadata = new Metadata();
-            parser.parse(input, handler, metadata, new ParseContext());
-            return new XMLResult(sw.toString(), metadata);
         } finally {
             input.close();
         }
@@ -744,8 +715,10 @@ public class OOXMLParserTest extends TikaTest {
        assertEquals(null,                   metadata.get(TikaCoreProperties.CREATOR));
        assertEquals(null,                   metadata.get(TikaCoreProperties.MODIFIER));
        assertEquals("2006-09-12T15:06:44Z", metadata.get(TikaCoreProperties.CREATED));
+       assertEquals("2006-09-12T15:06:44Z", metadata.get(Metadata.CREATION_DATE));
        assertEquals("2011-08-22T14:24:38Z", metadata.get(Metadata.LAST_MODIFIED));
        assertEquals("2011-08-22T14:24:38Z", metadata.get(TikaCoreProperties.MODIFIED));
+       assertEquals("2011-08-22T14:24:38Z", metadata.get(Metadata.DATE));
        assertEquals("Microsoft Excel",      metadata.get(Metadata.APPLICATION_NAME));
        assertEquals("Microsoft Excel",      metadata.get(OfficeOpenXMLExtended.APPLICATION));
        assertEquals("true",                 metadata.get("custom:myCustomBoolean"));
@@ -773,8 +746,11 @@ public class OOXMLParserTest extends TikaTest {
              metadata.get(Metadata.CONTENT_TYPE));
        assertEquals("EJ04325S",             metadata.get(TikaCoreProperties.CREATOR));
        assertEquals("Etienne Jouvin",       metadata.get(TikaCoreProperties.MODIFIER));
+       assertEquals("Etienne Jouvin",       metadata.get(Metadata.LAST_AUTHOR));
        assertEquals("2011-07-29T16:52:00Z", metadata.get(TikaCoreProperties.CREATED));
+       assertEquals("2011-07-29T16:52:00Z", metadata.get(Metadata.CREATION_DATE));
        assertEquals("2012-01-03T22:14:00Z", metadata.get(TikaCoreProperties.MODIFIED));
+       assertEquals("2012-01-03T22:14:00Z", metadata.get(Metadata.DATE));
        assertEquals("Microsoft Office Word",metadata.get(Metadata.APPLICATION_NAME));
        assertEquals("Microsoft Office Word",metadata.get(OfficeOpenXMLExtended.APPLICATION));
        assertEquals("1",                    metadata.get(Office.PAGE_COUNT));
@@ -812,8 +788,11 @@ public class OOXMLParserTest extends TikaTest {
              metadata.get(Metadata.CONTENT_TYPE));
        assertEquals("JOUVIN ETIENNE",       metadata.get(TikaCoreProperties.CREATOR));
        assertEquals("EJ04325S",             metadata.get(TikaCoreProperties.MODIFIER));
+       assertEquals("EJ04325S",             metadata.get(Metadata.LAST_AUTHOR));
        assertEquals("2011-08-22T13:30:53Z", metadata.get(TikaCoreProperties.CREATED));
+       assertEquals("2011-08-22T13:30:53Z", metadata.get(Metadata.CREATION_DATE));
        assertEquals("2011-08-22T13:32:49Z", metadata.get(TikaCoreProperties.MODIFIED));
+       assertEquals("2011-08-22T13:32:49Z", metadata.get(Metadata.DATE));
        assertEquals("1",                    metadata.get(Office.SLIDE_COUNT));
        assertEquals("3",                    metadata.get(Office.WORD_COUNT));
        assertEquals("Test extraction properties pptx", metadata.get(TikaCoreProperties.TITLE));
@@ -823,4 +802,113 @@ public class OOXMLParserTest extends TikaTest {
        assertEquals("2010-12-30T22:00:00Z", metadata.get("custom:MyCustomDate"));
        assertEquals("2010-12-29T22:00:00Z", metadata.get("custom:myCustomSecondDate"));
     }
-}
+
+    // TIKA-989:
+    public void testEmbeddedPDF() throws Exception {
+       InputStream input = OOXMLParserTest.class.getResourceAsStream(
+             "/test-documents/testWORD_embedded_pdf.docx");
+       Metadata metadata = new Metadata();
+       StringWriter sw = new StringWriter();
+       SAXTransformerFactory factory = (SAXTransformerFactory)
+                SAXTransformerFactory.newInstance();
+       TransformerHandler handler = factory.newTransformerHandler();
+       handler.getTransformer().setOutputProperty(OutputKeys.METHOD, "xml");
+       handler.getTransformer().setOutputProperty(OutputKeys.INDENT, "no");
+       handler.setResult(new StreamResult(sw));
+
+       try {
+          new OOXMLParser().parse(input, handler, metadata, new ParseContext());
+       } finally {
+          input.close();
+       }
+       String xml = sw.toString();
+       int i = xml.indexOf("Here is the pdf file:");
+       int j = xml.indexOf("<div class=\"embedded\" id=\"rId5\"/>");
+       int k = xml.indexOf("Bye Bye");
+       int l = xml.indexOf("<div class=\"embedded\" id=\"rId6\"/>");
+       int m = xml.indexOf("Bye for real.");
+       assertTrue(i != -1);
+       assertTrue(j != -1);
+       assertTrue(k != -1);
+       assertTrue(l != -1);
+       assertTrue(m != -1);
+       assertTrue(i < j);
+       assertTrue(j < k);
+       assertTrue(k < l);
+       assertTrue(l < m);
+    }
+
+    // TIKA-997:
+    public void testEmbeddedZipInPPTX() throws Exception {
+        InputStream input = OOXMLParserTest.class.getResourceAsStream(
+              "/test-documents/test_embedded_zip.pptx");
+        Metadata metadata = new Metadata();
+        StringWriter sw = new StringWriter();
+        SAXTransformerFactory factory = (SAXTransformerFactory)
+                 SAXTransformerFactory.newInstance();
+        TransformerHandler handler = factory.newTransformerHandler();
+        handler.getTransformer().setOutputProperty(OutputKeys.METHOD, "xml");
+        handler.getTransformer().setOutputProperty(OutputKeys.INDENT, "no");
+        handler.setResult(new StreamResult(sw));
+
+        try {
+            new OOXMLParser().parse(input, handler, metadata, new ParseContext());
+        } finally {
+            input.close();
+        }
+        String xml = sw.toString();
+        int h = xml.indexOf("<div class=\"embedded\" id=\"slide1_rId3\"/>");
+        int i = xml.indexOf("Send me a note");
+        int j = xml.indexOf("<div class=\"embedded\" id=\"slide2_rId4\"/>");
+        int k = xml.indexOf("<p>No title</p>");
+        assertTrue(h != -1);
+        assertTrue(i != -1);
+        assertTrue(j != -1);
+        assertTrue(k != -1);
+        assertTrue(h < i);
+        assertTrue(i < j);
+        assertTrue(j < k);
+    }
+  
+    // TIKA-1006
+    public void testWordNullStyle() throws Exception {
+      String xml = getXML("testWORD_null_style.docx").xml;        
+      assertContains("Test av styrt dokument", xml);
+    }
+
+    /**
+     * TIKA-1044 - Handle word documents where parts of the
+     *  text have no formatting or styles applied to them
+     */
+    public void testNoFormat() throws Exception {
+       ContentHandler handler = new BodyContentHandler();
+       Metadata metadata = new Metadata();
+
+       InputStream stream = WordParserTest.class.getResourceAsStream(
+               "/test-documents/testWORD_no_format.docx");
+       try {
+          new OOXMLParser().parse(stream, handler, metadata, new ParseContext());
+       } finally {
+           stream.close();
+       }
+
+       String content = handler.toString();
+       assertContains("This is a piece of text that causes an exception", content);
+    }
+    
+    // TIKA-1005:
+    public void testTextInsideTextBox() throws Exception {
+        String xml = getXML("testWORD_text_box.docx").xml;
+        assertContains("This text is directly in the body of the document.", xml);
+        assertContains("This text is inside of a text box in the body of the document.", xml);
+        assertContains("This text is inside of a text box in the header of the document.", xml);
+        assertContains("This text is inside of a text box in the footer of the document.", xml);
+    }
+
+    // TIKA-1032:
+    public void testEmbeddedPPTXTwoSlides() throws Exception {
+        String xml = getXML("testPPT_embedded_two_slides.pptx").xml;
+        assertContains("<div class=\"embedded\" id=\"slide1_rId7\"/>" , xml);
+        assertContains("<div class=\"embedded\" id=\"slide2_rId7\"/>" , xml);
+    }
+  }

@@ -20,6 +20,7 @@ import org.apache.tika.detect.Detector;
 import org.apache.tika.parser.Parser;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.Constants;
 import org.osgi.framework.ServiceReference;
 import org.osgi.util.tracker.ServiceTracker;
 import org.osgi.util.tracker.ServiceTrackerCustomizer;
@@ -60,10 +61,16 @@ public class TikaActivator implements BundleActivator, ServiceTrackerCustomizer 
     }
 
 	public Object addingService(ServiceReference reference) {
+        int rank = 0;
+        Object property = reference.getProperty(Constants.SERVICE_RANKING);
+        if (property instanceof Integer) {
+            rank = (Integer) property;
+        }
+
         Object service = bundleContext.getService(reference);
-        ServiceLoader.addService(reference, service);
-		return service;
-	}
+        ServiceLoader.addService(reference, service, rank);
+        return service;
+    }
 
 	public void modifiedService(ServiceReference reference, Object service) {
 	}

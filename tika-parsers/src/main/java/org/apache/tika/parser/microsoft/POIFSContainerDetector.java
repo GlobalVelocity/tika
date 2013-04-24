@@ -223,8 +223,11 @@ public class POIFSContainerDetector implements Detector {
                 // Works 7.0 spreadsheet files contain both
                 // we want to avoid classifying this as Excel
                 return XLR; 
-            } else if (names.contains("Workbook")) {
+            } else if (names.contains("Workbook") || names.contains("WORKBOOK")) {
                 return XLS;
+            } else if (names.contains("Book")) {
+               // Excel 95 or older, we won't be able to parse this....
+               return XLS;
             } else if (names.contains("EncryptedPackage") && 
                     names.contains("EncryptionInfo") &&
                     names.contains("\u0006DataSpaces")) {
@@ -250,8 +253,10 @@ public class POIFSContainerDetector implements Detector {
                 // this occurs on older Works Word Processor files (versions 3.0 and 4.0)
                 return WPS;
             } else if (names.contains("CONTENTS") && names.contains("SPELLING")) {
-               // Newer Works files
-               return WPS;
+                // Newer Works files
+                return WPS;
+            } else if (names.contains("Contents") && names.contains("\u0003ObjInfo")) {
+                return COMP_OBJ;
             } else if (names.contains("CONTENTS") && names.contains("\u0001CompObj")) {
                // CompObj is a general kind of OLE2 embedding, but this may be an old Works file
                // If we have the Directory, check

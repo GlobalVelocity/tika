@@ -20,7 +20,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.StringWriter;
-
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
@@ -30,6 +29,7 @@ import org.apache.tika.Tika;
 import org.apache.tika.TikaTest;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.Office;
 import org.apache.tika.metadata.OfficeOpenXMLCore;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
@@ -320,6 +320,15 @@ public class RTFParserTest extends TikaTest {
         assertTrue(getXML("testBinControlWord.rtf").xml.indexOf("\u00ff\u00ff\u00ff\u00ff") == -1);
     }
 
+    // TIKA-999
+    public void testMetaDataCounts() throws Exception {
+      XMLResult xml = getXML("test_embedded_package.rtf");
+      assertEquals("1", xml.metadata.get(Office.PAGE_COUNT));
+      assertEquals("7", xml.metadata.get(Office.WORD_COUNT));
+      assertEquals("36", xml.metadata.get(Office.CHARACTER_COUNT));
+      assertTrue(xml.metadata.get(Office.CREATION_DATE).startsWith("2012-09-02T"));
+    }
+
     private Result getResult(String filename) throws Exception {
         File file = getResourceAsFile("/test-documents/" + filename);
        
@@ -332,37 +341,6 @@ public class RTFParserTest extends TikaTest {
                      new ParseContext());
         String content = writer.toString();
         return new Result(content, metadata);
-    }
-
-    private static class XMLResult {
-        public final String xml;
-        public final Metadata metadata;
-
-        public XMLResult(String xml, Metadata metadata) {
-            this.xml = xml;
-            this.metadata = metadata;
-      }
-    }
-
-    private XMLResult getXML(String filename) throws Exception {
-        Metadata metadata = new Metadata();
-        
-        StringWriter sw = new StringWriter();
-        SAXTransformerFactory factory = (SAXTransformerFactory)
-                 SAXTransformerFactory.newInstance();
-        TransformerHandler handler = factory.newTransformerHandler();
-        handler.getTransformer().setOutputProperty(OutputKeys.METHOD, "xml");
-        handler.getTransformer().setOutputProperty(OutputKeys.INDENT, "no");
-        handler.setResult(new StreamResult(sw));
-
-        // Try with a document containing various tables and formattings
-        InputStream input = getResourceAsStream("/test-documents/" + filename);
-        try {
-            tika.getParser().parse(input, handler, metadata, new ParseContext());
-            return new XMLResult(sw.toString(), metadata);
-        } finally {
-            input.close();
-        }
     }
 
     private String getText(String filename) throws Exception {
