@@ -123,21 +123,24 @@
               juniversalchardet,
               vorbis-java-core, vorbis-java-tika,
               isoparser, aspectjrt,
-              metadata-extractor,
+              metadata-extractor, xmpcore, org-w3c-dom,
               boilerpipe, rome,
               apache-mime4j-core, apache-mime4j-dom
             </Embed-Dependency>
             <Embed-Transitive>true</Embed-Transitive>
             <Bundle-DocURL>${project.url}</Bundle-DocURL>
-            <Export-Package>
+
+            <_exportcontents>
               !org.apache.tika.parser,
               !org.apache.tika.parser.external,
               org.apache.tika.parser.*
-            </Export-Package>
+            </_exportcontents>
+
+
             <Import-Package>
               *,
-              com.adobe.xmp;resolution:=optional,
-              com.adobe.xmp.properties;resolution:=optional,
+              org.w3c.dom,
+              org.apache.tika.*,
               com.google.protobuf;resolution:=optional,
               com.ibm.icu.text;resolution:=optional,
               com.sleepycat.je;resolution:=optional,
@@ -235,6 +238,10 @@
           </execution>
         </executions>
       </plugin>
+<!--<<<<<<< HEAD     -->
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+<!--=======
     </plugins>
   </build>
 
@@ -247,8 +254,8 @@
       <build>
         <plugins>
           <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-assembly-plugin</artifactId>
+>>>>>>> 3d73441... TIKA-968: tika-bundle missing org.apache.commons.logging.LogFactory    -->
+            <artifactId>maven-assembly-plugin</artifactId>
             <version>2.3</version>
             <executions>
                 <execution>
@@ -286,8 +293,6 @@
         </plugin>
     </plugins>
   </build>
-  </profile>
-  </profiles>
 
 
 </project>
