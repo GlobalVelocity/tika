@@ -142,6 +142,13 @@ public class LanguageIdentifier {
     }
 
     /**
+     * Gets the quantitative certainty for the identified language
+     * @return Certainty value from 1.0 (0% certain) to 0.0 (100% certain)
+     */
+    public double getDistance() {
+        return distance;
+    }
+    /**
      * Tries to judge whether the identification is certain enough
      * to be trusted.
      * WARNING: Will never return true for small amount of input texts. 
