@@ -410,6 +410,7 @@ class PDF2XHTML extends PDFTextStripper {
         StringBuilder sb = new StringBuilder();
         if (value != null && ! value.equals("null")){
             sb.append(value);
+            sb.append(" ");
         }
         if (attrs.getLength() > 0 || sb.length() > 0){
             handler.startElement("li", attrs);
