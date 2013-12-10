@@ -455,4 +455,14 @@ public class PDFParserTest extends TikaTest {
         assertTrue(j != -1);
         assertTrue(i < j);
     }
+    
+    // TIKA-973
+    public void testAcroForm() throws Exception{
+       //this guarantees that the form processor
+       //worked recursively at least once...i.e. it didn't just
+       //take the first form
+       String xml = getXML("testPDF_acroForm.pdf").xml;
+       int i = xml.indexOf("123 Main St.");
+       assertTrue( i != -1);
+    }
 }

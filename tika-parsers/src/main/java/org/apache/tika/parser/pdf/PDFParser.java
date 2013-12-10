@@ -82,6 +82,9 @@ public class PDFParser extends AbstractParser {
     // True if we should sort text tokens by position
     // (necessary for some PDFs, but messes up other PDFs):
     private boolean sortByPosition = false;
+    
+    // True if we should dump AcroForm contents
+    private boolean extractAcroForm = true;
 
     /**
      * Metadata key for giving the document password to the parser.
@@ -149,7 +152,7 @@ public class PDFParser extends AbstractParser {
             extractMetadata(pdfDocument, metadata);
             PDF2XHTML.process(pdfDocument, handler, metadata,
                               extractAnnotationText, enableAutoSpace,
-                              suppressDuplicateOverlappingText, sortByPosition);
+                              suppressDuplicateOverlappingText, sortByPosition, extractAcroForm);
 
             extractEmbeddedDocuments(context, pdfDocument, handler);
         } finally {
@@ -363,4 +366,18 @@ public class PDFParser extends AbstractParser {
         return sortByPosition;
     }
 
+    /**
+     * If true, Tika will extract the contents of
+     * an AcroForm (if it exists). Currently extracts content
+     * at end of document.  Default is true.
+     * @param v
+     */
+    public void setExtractAcroForm(boolean v){
+       extractAcroForm = v;
+    }
+    
+    /** @see #setExtractAcroForm(boolean) */
+    public boolean getExtractAcroForm(){
+       return extractAcroForm;
+    }
 }
