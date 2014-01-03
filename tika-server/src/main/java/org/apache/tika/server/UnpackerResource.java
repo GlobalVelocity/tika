@@ -18,8 +18,8 @@
 package org.apache.tika.server;
 
 import org.apache.commons.lang.mutable.MutableInt;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+//import org.apache.commons.logging.Log;
+//import org.apache.commons.logging.LogFactory;
 import org.apache.poi.poifs.filesystem.*;
 import org.apache.poi.util.IOUtils;
 import org.apache.tika.config.TikaConfig;
@@ -51,7 +51,7 @@ import java.util.Map;
 
 @Path("/")
 public class UnpackerResource {
-  private static final Log logger = LogFactory.getLog(UnpackerResource.class);
+//  private static final Log logger = LogFactory.getLog(UnpackerResource.class);
   public static final String TEXT_FILENAME = "__TEXT__";
   private static final String META_FILENAME = "__METADATA__";
 
@@ -94,7 +94,7 @@ public class UnpackerResource {
     AutoDetectParser parser = TikaResource.createParser();
 
     TikaResource.fillMetadata(parser, metadata, httpHeaders);
-    TikaResource.logRequest(logger, info, metadata);
+    //TikaResource.logRequest(logger, info, metadata);
 
     ContentHandler ch;
     ByteArrayOutputStream text = new ByteArrayOutputStream();
@@ -115,10 +115,6 @@ public class UnpackerResource {
     try {
       parser.parse(is, ch, metadata, pc);
     } catch (TikaException ex) {
-      logger.warn(String.format(
-              "%s: Unpacker failed",
-              info.getPath()
-      ), ex);
 
       throw ex;
     }
@@ -172,7 +168,7 @@ public class UnpackerResource {
             name += ext;
           }
         } catch (MimeTypeException e) {
-          logger.warn("Unexpected MimeTypeException", e);
+          //logger.warn("Unexpected MimeTypeException", e);
         }
       }
 
@@ -195,7 +191,7 @@ public class UnpackerResource {
               data = ole.getDataBuffer();
             }
           } catch (Ole10NativeException ex) {
-            logger.warn("Skipping invalid part", ex);
+            //logger.warn("Skipping invalid part", ex);
           }
         } else {
           name += '.' + type.getExtension();

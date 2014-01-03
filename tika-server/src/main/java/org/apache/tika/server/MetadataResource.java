@@ -18,8 +18,8 @@
 package org.apache.tika.server;
 
 import au.com.bytecode.opencsv.CSVWriter;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+//import org.apache.commons.logging.Log;
+//import org.apache.commons.logging.LogFactory;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.xml.sax.helpers.DefaultHandler;
@@ -41,7 +41,7 @@ import java.util.Arrays;
 
 @Path("/meta{id:(/.*)?}")
 public class MetadataResource {
-  private static final Log logger = LogFactory.getLog(MetadataResource.class);
+//  private static final Log logger = LogFactory.getLog(MetadataResource.class);
 
   @PUT
   @Produces("text/csv")
@@ -49,7 +49,7 @@ public class MetadataResource {
     final Metadata metadata = new Metadata();
     AutoDetectParser parser = TikaResource.createParser();
     TikaResource.fillMetadata(parser, metadata, httpHeaders);
-    TikaResource.logRequest(logger, info, metadata);
+//    TikaResource.logRequest(logger, info, metadata);
 
     parser.parse(is, new DefaultHandler(), metadata);
 

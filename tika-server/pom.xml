@@ -20,7 +20,7 @@
   <parent>
     <groupId>com.globalvelocity.tika</groupId>
     <artifactId>tika-parent</artifactId>
-    <version>1.3-5</version>
+    <version>1.3-6</version>
     <relativePath>../tika-parent/pom.xml</relativePath>
   </parent>
 
@@ -74,9 +74,6 @@
           <redirectTestOutputToFile>true</redirectTestOutputToFile>
           <argLine>-da -XX:+HeapDumpOnOutOfMemoryError -Xmx512m</argLine>
           <systemPropertyVariables>
-            <java.util.logging.config.file>
-              ${basedir}/src/main/resources/commons-logging.properties
-            </java.util.logging.config.file>
           </systemPropertyVariables>
         </configuration>
       </plugin>
