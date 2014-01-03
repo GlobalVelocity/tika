@@ -49,15 +49,13 @@ public interface LoadErrorHandler {
     };
 
     /**
-     * Strategy that logs warnings of all problems using a {@link Logger}
+     * Strategy that logs warnings of all problems using a Logger
      * created using the given class name.
      */
-    //LoadErrorHandler WARN = new LoadErrorHandler() {
-    //    public void handleLoadError(String classname, Throwable throwable) {
-    //        Logger.getLogger(classname).log(
-    //                Level.WARNING, "Unable to load " + classname, throwable);
-    //    }
-    //};
+    LoadErrorHandler WARN = new LoadErrorHandler() {
+        public void handleLoadError(String classname, Throwable throwable) {
+        }
+    };
 
     /**
      * Strategy that throws a {@link RuntimeException} with the given
