@@ -14,3 +14,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.tika.parser.netcdf;
+
+//JDK imports
+import java.io.InputStream;
+
+//TIKA imports
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
+import org.apache.tika.sax.BodyContentHandler;
+import org.xml.sax.ContentHandler;
+
+//Junit imports
+import junit.framework.TestCase;
+
+/**
+ * Test cases to exercise the {@link NetCDFParser}.
+ * 
+ */
+public class NetCDFParserTest extends TestCase {
+
+    public void testParseGlobalMetadata() throws Exception {
+        if(System.getProperty("java.version").startsWith("1.5")) {
+            return;
+        }
+
+        Parser parser = new NetCDFParser();
+        ContentHandler handler = new BodyContentHandler();
+        Metadata metadata = new Metadata();
+
+        InputStream stream = NetCDFParser.class
+                .getResourceAsStream("/test-documents/sresa1b_ncar_ccsm3_0_run1_200001.nc");
+        try {
+            parser.parse(stream, handler, metadata, new ParseContext());
+        } finally {
+            stream.close();
+        }
+
+        assertEquals(metadata.get(TikaCoreProperties.TITLE),
+                "model output prepared for IPCC AR4");
+        assertEquals(metadata.get(Metadata.CONTACT), "ccsm@ucar.edu");
+        assertEquals(metadata.get(Metadata.PROJECT_ID),
+                "IPCC Fourth Assessment");
+        assertEquals(metadata.get(Metadata.CONVENTIONS), "CF-1.0");
+        assertEquals(metadata.get(Metadata.REALIZATION), "1");
+        assertEquals(metadata.get(Metadata.EXPERIMENT_ID),
+                "720 ppm stabilization experiment (SRESA1B)");
+
+    }
+
+}
