@@ -18,8 +18,8 @@ package org.apache.tika.parser.xml;
 
 import java.util.Arrays;
 
-//import org.apache.commons.logging.Log;
-//import org.apache.commons.logging.LogFactory;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.Property;
 import org.xml.sax.Attributes;
@@ -34,8 +34,8 @@ public class ElementMetadataHandler extends AbstractMetadataHandler {
 	/**
 	 * Logger for this class
 	 */
-	//private static final Log logger = LogFactory
-	//		.getLog(ElementMetadataHandler.class);
+	private static final Log logger = LogFactory
+			.getLog(ElementMetadataHandler.class);
 
 	private static final String LOCAL_NAME_RDF_BAG = "Bag";
 	private static final String LOCAL_NAME_RDF_LI = "li";
@@ -75,9 +75,9 @@ public class ElementMetadataHandler extends AbstractMetadataHandler {
         this.localName = localName;
         this.metadata = metadata;
         this.name = name;
-        //if (logger.isTraceEnabled()) {
-    	//	logger.trace("created simple handler for " + this.name);
-    	//}
+        if (logger.isTraceEnabled()) {
+    		logger.trace("created simple handler for " + this.name);
+    	}
     }
 
     public ElementMetadataHandler(
@@ -88,9 +88,9 @@ public class ElementMetadataHandler extends AbstractMetadataHandler {
         this.metadata = metadata;
         this.targetProperty = targetProperty;
         this.name = targetProperty.getName();
-        //if (logger.isTraceEnabled()) {
-    	//	logger.trace("created property handler for " + this.name);
-    	//}
+        if (logger.isTraceEnabled()) {
+    		logger.trace("created property handler for " + this.name);
+    	}
     }
 
     protected boolean isMatchingParentElement(String uri, String localName) {
@@ -161,9 +161,9 @@ public class ElementMetadataHandler extends AbstractMetadataHandler {
 
     @Override
     protected void addMetadata(String value) {
-        //if (logger.isTraceEnabled()) {
-        //    logger.trace("adding " + name + "=" + value);
-        //}
+        if (logger.isTraceEnabled()) {
+            logger.trace("adding " + name + "=" + value);
+        }
         if (targetProperty != null && targetProperty.isMultiValuePermitted()) {
             if (value != null && value.length() > 0) {
                 String[] previous = metadata.getValues(name);

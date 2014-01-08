@@ -17,8 +17,8 @@
 
 package org.apache.tika.server;
 
-//import org.apache.commons.logging.Log;
-//import org.apache.commons.logging.LogFactory;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.poi.extractor.ExtractorFactory;
 import org.apache.poi.hwpf.OldWordFileFormatException;
 import org.apache.tika.detect.Detector;
@@ -46,7 +46,7 @@ import java.util.Set;
 @Path("/tika{id:(/.*)?}")
 public class TikaResource {
   public static final String GREETING = "This is Tika Server. Please PUT\n";
-//  private final Log logger = LogFactory.getLog(TikaResource.class);
+  private final Log logger = LogFactory.getLog(TikaResource.class);
 
   static {
     ExtractorFactory.setAllThreadsPreferEventExtractors(true);
@@ -122,7 +122,7 @@ public class TikaResource {
 
     fillMetadata(parser, metadata, httpHeaders);
 
-    //logRequest(logger, info, metadata);
+    logRequest(logger, info, metadata);
 
     return new StreamingOutput() {
       public void write(OutputStream outputStream) throws IOException, WebApplicationException {
@@ -170,7 +170,7 @@ public class TikaResource {
       }
     };
   }
-/*
+
   public static void logRequest(Log logger, UriInfo info, Metadata metadata) {
     if (metadata.get(org.apache.tika.metadata.HttpHeaders.CONTENT_TYPE)==null) {
       logger.info(String.format(
@@ -185,5 +185,4 @@ public class TikaResource {
       ));
     }
   }
-    */
 }

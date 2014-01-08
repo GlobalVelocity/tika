@@ -48,11 +48,11 @@ import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
 
-//import org.apache.log4j.BasicConfigurator;
-//import org.apache.log4j.Level;
-//import org.apache.log4j.Logger;
-//import org.apache.log4j.SimpleLayout;
-//import org.apache.log4j.WriterAppender;
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.SimpleLayout;
+import org.apache.log4j.WriterAppender;
 import org.apache.poi.poifs.filesystem.DirectoryEntry;
 import org.apache.poi.poifs.filesystem.DocumentEntry;
 import org.apache.poi.poifs.filesystem.DocumentInputStream;
@@ -99,9 +99,9 @@ public class TikaCLI {
     private File extractDir = new File(".");
 
     public static void main(String[] args) throws Exception {
-       // BasicConfigurator.configure(
-       //         new WriterAppender(new SimpleLayout(), System.err));
-        //Logger.getRootLogger().setLevel(Level.INFO);
+        BasicConfigurator.configure(
+                new WriterAppender(new SimpleLayout(), System.err));
+        Logger.getRootLogger().setLevel(Level.INFO);
 
         TikaCLI cli = new TikaCLI();
         if (args.length > 0) {
@@ -319,7 +319,9 @@ public class TikaCLI {
         } else if (arg.equals("-V") || arg.equals("--version")) {
             pipeMode = false;
             version();
-        }else if (arg.equals("-g") || arg.equals("--gui")) {
+        } else if (arg.equals("-v") || arg.equals("--verbose")) {
+            Logger.getRootLogger().setLevel(Level.DEBUG);
+        } else if (arg.equals("-g") || arg.equals("--gui")) {
             pipeMode = false;
             TikaGUI.main(new String[0]);
         } else if (arg.equals("--list-parser") || arg.equals("--list-parsers")) {

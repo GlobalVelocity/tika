@@ -27,8 +27,8 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
-//import org.apache.commons.logging.Log;
-//import org.apache.commons.logging.LogFactory;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.binding.BindingFactoryManager;
 import org.apache.cxf.endpoint.Server;
 import org.apache.cxf.jaxrs.JAXRSBindingFactory;
@@ -37,7 +37,7 @@ import org.apache.cxf.jaxrs.lifecycle.SingletonResourceProvider;
 import org.apache.tika.Tika;
 
 public class TikaServerCli {
-//  private static final Log logger = LogFactory.getLog(TikaServerCli.class);
+  private static final Log logger = LogFactory.getLog(TikaServerCli.class);
   public static final int DEFAULT_PORT = 9998;
 
   private static Options getOptions() {
@@ -56,8 +56,8 @@ public class TikaServerCli {
       throw new RuntimeException(e);
     }
 
-    //logger.info("Starting Tikaserver "+properties.getProperty("tikaserver.version"));
-    //logger.info("Starting Tika Server " + new Tika().toString());
+    logger.info("Starting Tikaserver "+properties.getProperty("tikaserver.version"));
+    logger.info("Starting Tika Server " + new Tika().toString());
 
     try {
       Options options = getOptions();
@@ -96,9 +96,9 @@ public class TikaServerCli {
       manager.registerBindingFactory(JAXRSBindingFactory.JAXRS_BINDING_ID,
 				factory);
       Server server = sf.create();
-      //logger.info("Started");
+      logger.info("Started");
     } catch (Exception ex) {
-      //logger.fatal("Can't start", ex);
+      logger.fatal("Can't start", ex);
       System.exit(-1);
     }
   }

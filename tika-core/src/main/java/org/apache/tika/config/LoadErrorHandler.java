@@ -16,8 +16,8 @@
  */
 package org.apache.tika.config;
 
-//import java.util.logging.Level;
-//import java.util.logging.Logger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Interface for error handling strategies in service class loading.
@@ -52,12 +52,12 @@ public interface LoadErrorHandler {
      * Strategy that logs warnings of all problems using a {@link Logger}
      * created using the given class name.
      */
-    //LoadErrorHandler WARN = new LoadErrorHandler() {
-    //    public void handleLoadError(String classname, Throwable throwable) {
-    //        Logger.getLogger(classname).log(
-    //                Level.WARNING, "Unable to load " + classname, throwable);
-    //    }
-    //};
+    LoadErrorHandler WARN = new LoadErrorHandler() {
+        public void handleLoadError(String classname, Throwable throwable) {
+            Logger.getLogger(classname).log(
+                    Level.WARNING, "Unable to load " + classname, throwable);
+        }
+    };
 
     /**
      * Strategy that throws a {@link RuntimeException} with the given
